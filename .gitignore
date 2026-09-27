@@ -1,0 +1,18 @@
+# Raw/intermediate data — large, and regenerable from the fetch scripts
+*.csv
+*.db
+*.gpkg*
+sat_chunks/
+nrn_data/
+*.zip
+
+# Python
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+
+# Secrets
+.env
+
+# Keep trained model bundles — these ARE the deliverable
+!models/*.pkl
