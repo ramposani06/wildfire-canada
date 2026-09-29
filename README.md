@@ -2,16 +2,23 @@
 
 Predicting whether a newly reported Canadian wildfire will grow into a **big fire (>100 hectares)**, using only information available in the first hours after a fire is reported: weather, terrain, vegetation, satellite heat signal, and accessibility.
 
-## Results (forward-tested on genuinely unseen years)
+## Results (latest model: v14.6, forward-tested on 2025-2026)
 
-The model is trained on 2012–2021 fires, calibrated on 2022–2024, and never touched during tuning after that. 2025 and 2026 are true forward tests — the model never saw this data in any form before scoring it.
+Trained on 2004-2021 fires, features and threshold chosen on 2022-2024, then scored once on 2025-2026. These years were looked at by earlier model versions too, so this is a **forward test, not a perfectly untouched one**. The first truly untouched test will be 2027.
 
-| Test year | PR-AUC | ROC-AUC | Recall (at alert threshold) |
+| Test | Fires (big) | ROC-AUC | PR-AUC |
 |---|---|---|---|
-| 2025 | 0.562 | 0.908 | 65.6% |
-| 2026 | 0.636 | 0.922 | 73.5% |
+| 2025+ | 8,564 (974) | 0.929 (0.921-0.936) | 0.634 (0.600-0.668) |
+| 2025 | 3,603 (302) | 0.923 | 0.587 |
+| 2026 | 4,961 (672) | 0.929 | 0.656 |
 
-PR-AUC (precision-recall) is the primary metric — big fires are ~9-14% of all fires, so ROC-AUC alone is optimistic.
+Ranges are 95% bootstrap intervals. PR-AUC is the main metric: big fires are only about 8-14% of fires, so a random guess scores about 0.11.
+
+**Alert rule:** raw score >= 0.770 catches 73% of big fires, and 53% of flagged fires are truly big (16% of fires flagged). Flagging the top 15% by score catches 71%.
+
+**Calibration:** the raw scores are not probabilities. A Platt calibrator (fitted on 2022-2024) cuts the Brier score from 0.114 to 0.061 on 2025+ and keeps the average chance close to the real rate in both years. A raw score of 0.770 is about a 29% chance.
+
+Full details, QA audit, data audit and limits: [`docs/model_card_v14_6.md`](docs/model_card_v14_6.md). The older v14.1 numbers are kept in [`docs/model_card.md`](docs/model_card.md) and the changelog.
 
 ## Approach
 
@@ -56,6 +63,8 @@ models/            — trained model bundles (.pkl)
 live_scoring/      — score a brand-new fire report in real time
 docs/              — model card, technical notes
 notebooks/exploratory/ — one-off analysis notebooks
+analysis/          — v14.2-v14.6 work: clean retrains, 2006-07 recovery, sensor checks, calibration
+audits/            — QA audit of the saved model and data-integrity audit
 ```
 
 ## Data sources
@@ -72,12 +81,15 @@ notebooks/exploratory/ — one-off analysis notebooks
 
 ## Model
 
-LightGBM gradient-boosted trees, 22 features, binary classification (fire grows past 100ha or not), with Platt calibration fit on 2022-2024 so output scores are usable as real probabilities, not just rankings.
+LightGBM gradient-boosted trees, 24 features, binary classification (fire grows past 100ha or not). v14.6 uses 2004-2021 fires for training (the 2004-2011 years beat 2012-only training). The model gives raw scores; a separate Platt calibrator turns them into estimated chances.
 
 ## Limitations
 
 - Weaker in low-fire-count / sparse-station regions (NT, YT, SK, BC)
-- Only two forward-test years exist so far (2025, 2026) — a third year will be added as time passes
+- Only two forward-test years exist so far (2025, 2026), and they are not perfectly untouched. 2027 will be the first clean test
+- Inside one province the ranking is weaker than the national score (ROC-AUC about 0.80-0.93)
+- Human-caused fires are harder to rank (few are big)
+- Population and road distance use one modern layer for all years
 - Not independently reproduced by anyone outside this project
 - Doesn't yet include lightning density or nearby-fire-activity features (identified as promising, not yet tested)
 
