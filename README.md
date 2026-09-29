@@ -62,7 +62,7 @@ modeling/          — feature config, training, evaluation
 models/            — trained model bundles (.pkl)
 live_scoring/      — score a brand-new fire report in real time
 docs/              — model card, technical notes
-notebooks/exploratory/ — one-off analysis notebooks
+notebooks/          — cleaned full-pipeline walkthrough
 analysis/          — v14.2-v14.6 work: clean retrains, 2006-07 recovery, sensor checks, calibration
 audits/            — QA audit of the saved model and data-integrity audit
 ```

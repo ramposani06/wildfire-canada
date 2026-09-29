@@ -1,6 +1,6 @@
 # Changelog
 
-This project went through many iterations before landing on the current production model. Earlier work wasn't tracked in git — it happened across a few Colab notebooks — so this changelog reconstructs the real version history from those notebooks (kept in `notebooks/exploratory/`) rather than pretending development started from a clean slate.
+This project went through many iterations before landing on the current production model. Earlier work wasn't tracked in git — it happened across a few Colab notebooks — so this changelog reconstructs the real version history from those notebooks (the raw working notebooks are kept privately; `notebooks/full_pipeline_walkthrough.ipynb` is a cleaned summary of the code from each stage) rather than pretending development started from a clean slate.
 
 Every version below is a real, distinct model that was actually trained and saved during this project. Rejected ideas are listed too — the rejections are as much a part of the record as the adoptions.
 
@@ -26,7 +26,7 @@ Added Platt and isotonic calibration on top of v10, with reliability tables and 
 
 ## v12 — first frozen production model
 
-Trained 2012–2021, calibrated (Platt) on 2022–2024, alert threshold chosen by best F1 on the calibration set only. FWI (Fire Weather Index, via CFFDRS) was tested in earlier exploratory work (`notebooks/exploratory/01_early_fwi_and_weather_fetch.ipynb`) and **dropped** — it didn't earn its place in the final feature set. Also fixed a known data issue (Alberta 2023 satellite data). 2025 was explicitly excluded from training to keep it available as a forward test. `final_model_v12.pkl`.
+Trained 2012–2021, calibrated (Platt) on 2022–2024, alert threshold chosen by best F1 on the calibration set only. FWI (Fire Weather Index, via CFFDRS) was tested in earlier exploratory work and **dropped** — it didn't earn its place in the final feature set. Also fixed a known data issue (Alberta 2023 satellite data). 2025 was explicitly excluded from training to keep it available as a forward test. `final_model_v12.pkl`.
 
 ## Rejected — hyperparameter tuning (Optuna, 80 trials)
 
