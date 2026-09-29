@@ -8,10 +8,9 @@ Two lessons learned the hard way:
     "no detections" result — a transient error and a genuine null result
     look the same in a naive cache and are NOT the same thing. Only cache
     successful responses.
-  - Leakage boundary: only count detections in the window
-    [0, window_days] days BEFORE the report date. A detection admitted
-    from the report date itself, or after it, leaks the model
-    information it wouldn't have had at prediction time.
+  - Window: detections within 10 km, from 7 days BEFORE the report date
+    through the report day itself (both ends included). Detections after the
+    report day are never counted (leakage guard).
 """
 import os
 import time
@@ -63,8 +62,8 @@ def match_detections_to_fires(fires: pd.DataFrame, detections: pd.DataFrame,
                                radius_km: float = MATCH_RADIUS_KM) -> pd.DataFrame:
     """
     For each fire, count satellite detections within radius_km and within
-    the k-days-before-report window, where 0 <= k <= window_days.
-    Detections on or after the report date are excluded (leakage guard).
+    the k-days-before-report window, where 0 <= k <= window_days (k = 0 is the
+    report day itself). Detections AFTER the report date are excluded (leakage guard).
     """
     from sklearn.neighbors import BallTree
     import numpy as np

@@ -6,7 +6,7 @@
 #      Pick one by leave-one-year-out Brier score on 2022-2024 only.
 #   3. Score 2025+ (2025 and 2026 separately): Brier, log loss, calibration slope/intercept,
 #      predicted vs observed rate, reliability bins - raw vs calibrated.
-#   4. Save the chosen calibrator (does NOT change the model or its ranking).
+#   4. Save the chosen calibrator as a small JSON file (does NOT change the model or its ranking).
 # Run in Colab after mounting Drive. Paste ALL output back.
 
 import os, json, warnings, joblib
@@ -21,7 +21,7 @@ FOLDER     = os.environ.get("WF_FOLDER", "/content/drive/MyDrive")
 CSV        = os.environ.get("WF_CSV", "unified_dataset_2004_2026_FINAL_v3.csv")
 MODEL_FILE = "final_model_v14.6_clean.pkl"          # trained through 2024
 INFO_FILE  = "final_model_v14.6_clean_info.json"
-OUT_FILE   = "final_model_v14.6_calibrator.pkl"
+OUT_FILE   = "final_model_v14.6_calibrator.json"
 TARGET, YEAR, LAT, LON = "is_big_fire", "year", "LATITUDE", "LONGITUDE"
 VAL_YEARS  = [2022, 2023, 2024]
 SAVE       = os.environ.get("WF_SAVE", "1") == "1"
@@ -153,8 +153,24 @@ print("\nIf all PASS: you may show the calibrated chance, with a note that it is
 print("If CHECK: keep using the ranking rules (0.770 / top 15%) and do not show percentages.")
 
 if SAVE:
+    # Saved as plain JSON (numbers only), so it loads anywhere without this script or pickle.
+    if best == "Platt":
+        payload = {"method": "platt", "coef": float(platt.m.coef_[0][0]), "intercept": float(platt.m.intercept_[0]), "eps": EPS}
+    else:
+        payload = {"method": "isotonic", "x": [float(v) for v in iso.m.X_thresholds_], "y": [float(v) for v in iso.m.y_thresholds_], "eps": EPS}
+    payload.update({"fit_years": VAL_YEARS, "base_model_trained_to": 2021,
+                    "note": "Apply to raw predict_proba scores. Display only; alerts use the raw score."})
     out = os.path.join(os.path.dirname(find(MODEL_FILE)), OUT_FILE)
-    joblib.dump({"method": best, "calibrator": cal, "fit_years": VAL_YEARS, "base_model_trained_to": 2021,
-                 "note": "Apply to raw predict_proba scores. Does not change ranking (Platt)."}, out)
+    json.dump(payload, open(out, "w"), indent=1)
+
+    def apply_saved(p, raw):
+        raw = np.asarray(raw, dtype=float)
+        if p["method"] == "platt":
+            z = p["coef"] * logit(raw) + p["intercept"]
+            return 1 / (1 + np.exp(-z))
+        return np.clip(np.interp(raw, p["x"], p["y"]), p["eps"], 1 - p["eps"])
+
+    diff = float(np.max(np.abs(apply_saved(json.load(open(out)), s_te) - cal.predict(s_te))))
     print(f"\nSaved calibrator: {out}")
+    print(("PASS   " if diff < 1e-6 else "CHECK  ") + f"reloaded file gives the same chances (largest difference {diff:.2e})")
 print("\nDone. Paste all of this output back.")

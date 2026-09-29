@@ -18,7 +18,13 @@ Ranges are 95% bootstrap intervals. PR-AUC is the main metric: big fires are onl
 
 **Calibration:** the raw scores are not probabilities. A Platt calibrator (fitted on 2022-2024) cuts the Brier score from 0.114 to 0.061 on 2025+ and keeps the average chance close to the real rate in both years. A raw score of 0.770 is about a 29% chance.
 
-Full details, QA audit, data audit and limits: [`docs/model_card_v14_6.md`](docs/model_card_v14_6.md). The older v14.1 numbers are kept in [`docs/model_card.md`](docs/model_card.md) and the changelog.
+![Top-risk capture](docs/img/top_risk_capture_2025_2026.png)
+
+![Calibration](docs/img/calibration_2025_2026.png)
+
+*Charts use the 2025-2026 forward test. The calibration chart is from the model trained to 2021 with the calibrator fitted on 2022-2024.*
+
+Full details, QA audit, data audit and limits: [`docs/model_card.md`](docs/model_card.md). The older v14.1 card is kept in [`docs/archive/`](docs/archive/model_card_v14_1.md).
 
 ## Approach
 
@@ -60,7 +66,8 @@ The fix was retrained and bootstrap-validated before being adopted — no provin
 data_pipeline/     — fetch scripts (weather, terrain, satellite, roads, population)
 modeling/          — feature config, training, evaluation
 models/            — trained model bundles (.pkl)
-live_scoring/      — score a brand-new fire report in real time
+live_scoring/      — score a brand-new fire report in real time (v14.6)
+tests/             — tests for the live scorer and calibrator (fake web replies, no keys needed)
 docs/              — model card, technical notes
 notebooks/          — cleaned full-pipeline walkthrough
 analysis/          — v14.2-v14.6 work: clean retrains, 2006-07 recovery, sensor checks, calibration

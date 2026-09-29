@@ -60,9 +60,10 @@ Scripts for this work are in `analysis/` and `audits/`.
 - **v14.6 (`analysis/v14_6/retrain_v14_6_clean.py`):** 24 features, trained 2004-2021. Training from 2004 beat training from 2012 (validation PR-AUC 0.600 vs 0.587). Forward test 2025+: ROC-AUC 0.929, PR-AUC 0.634. Alert threshold 0.770 (raw score) or top 15%.
 - **QA audit (`audits/qa_audit_v14_6.py`):** 14 of 14 checks passed. Saved model reproduces reported scores, bootstrap ranges, province/cause breakdowns, alert stability, sensor eras (leave-one-year-out), direction checks.
 - **Data audit (`audits/data_integrity_audit.py`):** no impossible values, no year-to-year jumps, recovered years look normal, NDVI taken 1-16 days before the fire. Small notes: 10 bad road distances, empty UNIQUE_ID for 2012+.
-- **Calibration (`analysis/v14_6/calibration_v14_6.py`):** Platt calibrator fitted on 2022-2024 (from a model trained to 2021). On 2025+ Brier 0.114 -> 0.061, slope 1.00.
+- **Calibration (`analysis/v14_6/calibration_v14_6.py`):** Platt calibrator fitted on 2022-2024 (from a model trained to 2021). On 2025+ Brier 0.114 -> 0.061, slope 1.00. Saved as plain JSON (`modeling/calibration.py` loads it).
+- **Live scorer rewritten for v14.6:** alert on the raw score (0.770); satellite window now matches training (MODIS and VIIRS, 10 km, 7 days before through the report day; the old scorer used 1 day, a 0.5 degree box and VIIRS = 0); a failed satellite request gives empty values, not zeros; bad coordinates and road distances are caught. Tests added in `tests/`.
 
-Model files (`final_model_v14.6_clean*.pkl`, `final_model_v14.6_calibrator.pkl`) and the training data stay on Google Drive.
+Model files (`final_model_v14.6_clean*.pkl`, `final_model_v14.6_calibrator.json`) and the training data stay on Google Drive.
 
 ## Also tested and rejected (see model card for full list)
 

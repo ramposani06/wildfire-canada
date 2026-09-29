@@ -4,7 +4,7 @@ training, evaluation, and live scoring. Import from here rather than
 re-declaring feature lists in multiple scripts.
 """
 
-# The 22 features the production model (v14.1) uses.
+# The 24 features used by the production models (v14.1 and v14.6 use the same list).
 FEATURE_COLS_V14 = [
     # Weather — 7 days before official report date (13 features)
     "temperature_2m_max_mean",
@@ -55,7 +55,8 @@ BIG_FIRE_THRESHOLD_HA = 100
 # Temporal split — never changed after the model was frozen. Training
 # only ever sees TRAIN_YEARS and CALIBRATION_YEARS; anything after that
 # is a genuine forward test.
-TRAIN_YEARS = (2012, 2021)
+TRAIN_YEARS = (2012, 2021)          # v14.1
+TRAIN_YEARS_V14_6 = (2004, 2021)    # v14.6: the 2004-2011 years helped (validation PR-AUC 0.600 vs 0.587)
 CALIBRATION_YEARS = (2022, 2024)
 
 # Province code mapping (province_encoded), derived from the training
