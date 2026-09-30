@@ -24,6 +24,14 @@ Ranges are 95% bootstrap intervals. PR-AUC is the main metric: big fires are onl
 
 *Charts use the 2025-2026 forward test. The calibration chart is from the model trained to 2021 with the calibrator fitted on 2022-2024.*
 
+### What drives the score
+
+Removing three "remoteness" columns (road distance and two population counts) costs the most ROC-AUC. Removing the four satellite columns costs the most PR-AUC. Weather adds little once those are in. On the same 2025 fires, a logistic model on the fire weather index reaches ROC-AUC 0.67, against 0.92 for this model. Tables and caveats are in the [model card](docs/model_card.md).
+
+### Monitoring
+
+A one-page health check (alert rate by month, calibration, missing data, drift) is in [`monitoring/`](monitoring/). Open `monitoring/dashboard.html` in a browser. Numbers come from `monitoring/export_monitoring_tables.py`, and 2022-24 scores in it are in-sample.
+
 Full details, QA audit, data audit and limits: [`docs/model_card.md`](docs/model_card.md). The older v14.1 card is kept in [`docs/archive/`](docs/archive/model_card_v14_1.md).
 
 ## Approach
@@ -71,6 +79,7 @@ tests/             — tests for the live scorer and calibrator (fake web replie
 docs/              — model card, technical notes
 notebooks/          — cleaned full-pipeline walkthrough
 analysis/          — v14.2-v14.6 work: clean retrains, 2006-07 recovery, sensor checks, calibration
+monitoring/        — dashboard page and the script that builds its summary numbers
 audits/            — QA audit of the saved model and data-integrity audit
 ```
 

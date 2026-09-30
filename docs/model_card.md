@@ -95,6 +95,38 @@ The calibrator (Platt, a simple curve) was fitted on 2022-2024 scores from a mod
 - **Limits:** the calibrator was fitted on 2022-24 and can drift in a very different season. It was fitted for the 2024-trained model's kind of scores, so for the all-years model it is a close approximation, not a tested match. Refit it when 2027 fires are in. Small provinces and rare groups (for example human-caused fires) were not checked one by one.
 - Use the calibrated chance only for showing a risk number. The alert rules (0.770 raw score, or top 15%) stay as they are.
 
+## What drives the score, and how it compares with the fire weather index (2026-09-29)
+
+**Feature groups (refit on 2004-2024, tested on 2025-2026, 8,566 fires, 11.4% big).** Each group was removed in turn, then used alone.
+
+| Setup | Features | ROC-AUC | PR-AUC | Big fires in top 15% |
+|---|---|---|---|---|
+| All features | 24 | 0.928 | 0.632 | 71% |
+| Without weather | 11 | 0.923 | 0.621 | 71% |
+| Without terrain | 21 | 0.922 | 0.623 | 70% |
+| Without satellite | 20 | 0.910 | 0.542 | 67% |
+| Without roads and people | 21 | 0.907 | 0.599 | 68% |
+| Without province | 23 | 0.923 | 0.620 | 69% |
+| Only weather | 13 | 0.786 | 0.357 | 45% |
+| Only terrain | 3 | 0.783 | 0.329 | 47% |
+| Only satellite | 4 | 0.735 | 0.399 | 55% |
+| Only roads and people | 3 | 0.878 | 0.473 | 62% |
+| Only province | 1 | 0.776 | 0.315 | 42% |
+
+Road distance and the two population counts do the most work for ROC-AUC. Satellite adds the most for PR-AUC. Weather adds little once the other groups are present. The groups overlap, so the drops do not add up, and differences under about 0.01 AUC may be noise (one train/test split). Roads and people probably measure how remote a fire is; that reading is not tested.
+
+**Against the Canadian fire weather index (FWI).** FWI columns exist for 2012-2025 (95% of 2025 fires), so this test uses 3,433 fires from 2025. Baselines were trained on 2012-2024 fires that have FWI.
+
+| Score | ROC-AUC | PR-AUC | Big fires in top 15% |
+|---|---|---|---|
+| Model v14.6 | 0.920 | 0.588 | 74% |
+| 13 weather columns only (logistic) | 0.719 | 0.205 | 37% |
+| FWI columns only (logistic) | 0.673 | 0.135 | 24% |
+| Best single FWI column (BUI, 7-day mean) | 0.617 | 0.110 | 17% |
+| Random guessing | 0.50 | 0.087 | 15% |
+
+FWI is built to describe fire danger, not how big a fire becomes after it starts, so a weak result here is not a fault of FWI. The baselines are simple logistic models and were trained on fewer fires than the main model. Scripts: `analysis/v14_6/ablation_feature_groups.py` and `analysis/v14_6/baseline_fwi_weather.py`.
+
 ## Final QA audit (2026-09-29) - 14 of 14 checks passed
 - The saved model file reproduces the reported scores exactly. Its feature names, order and types match the info file.
 - No feature is a size, end-date, year or match column.
