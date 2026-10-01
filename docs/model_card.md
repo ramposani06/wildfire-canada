@@ -12,13 +12,28 @@ Predicts which Canadian wildfires will become big fires (more than 100 ha), usin
 | `final_model_v14.6_clean.pkl` | Same model trained through 2024. Gave the test scores below. Use for reports. |
 | `final_model_v14.6_clean_info.json` | Feature list, threshold, top-15% setting |
 | `final_model_v14.6_calibrator.json` | Turns the raw score into a real chance (see Calibration). Plain numbers, no pickle. |
-| `unified_dataset_2004_2026_FINAL_v3.csv` | Training data |
+| `unified_dataset_2004_2026_FINAL_v4.csv` | Training data (v3 plus 2,584 repaired 2025 fires, see Data repair) |
 
 ## Data
-- 140,406 fires, 2004-2026. The 2006 and 2007 fires (16,613) were missing from v2 and are now recovered.
+- 142,990 fires, 2004-2026 (v4). The 2006 and 2007 fires (16,613) were missing from v2 and are now recovered. v3 had 140,406; see Data repair below.
 - 149 fires with impossible coordinates (mostly 0,0) are left out of training and testing.
 - Big fires are about 7.7% of all fires, and 11.4% in 2025+.
 - The 2026 fires were built separately from the live CWFIS feed (per project notes): the report date is the first day a fire appeared in the feed, so it is approximate, and small fires still burning were left out. That makes the 2026 big-fire rate (13.5%) a little high.
+
+## Data repair (2026-10-01)
+- **Problem:** v3 had holes in 2025 (for example Manitoba and Ontario showed 0 fires). Cause: an inner join on the weather table silently dropped fires that had no weather row.
+- **Fix:** weather and terrain were rebuilt for the missing 2025 fires with the same pipeline code. A check on 150 known fires gave 100% identical weather; terrain was 99% identical (2,604 of 2,610). 2,584 fires were added (v3 140,406 to v4 142,990). 22 fires with impossible report dates were skipped.
+- **Still missing:** Yukon 2022 (289 fires, no report date), about 15 fires without weather, about 59 without road distance.
+- **Effect on the score (2025+):**
+
+| | ROC-AUC v3 | ROC-AUC v4 | PR-AUC v3 | PR-AUC v4 |
+|---|---|---|---|---|
+| 2025+ | 0.929 | 0.923 | 0.634 | 0.621 |
+| 2025 only | 0.923 | 0.915 | 0.587 | 0.582 |
+| 2026 only | 0.929 | 0.929 | 0.656 | 0.656 |
+
+  The 0.770 alert rule on 2025+ moves from 73% caught / 53% precise to 72% / 52%. The ranges overlap, so the drop is small. Calibration still holds (2025: 10.6% predicted vs 9.9% actual).
+- **Which numbers are which:** the Scores table and alert-rule lines below now show v4 where noted. Top-risk capture, by-province, ablation, FWI baseline, QA audit and calibration tables below were computed on **v3** and have not been rerun yet.
 
 ## Model
 - LightGBM classifier: 200 trees, learning rate 0.05, max depth 8, 31 leaves, class weighting on (`is_unbalance`).
@@ -46,12 +61,14 @@ Predicts which Canadian wildfires will become big fires (more than 100 ha), usin
 - 2025+ is a **forward-in-time test, not a perfectly untouched one**: earlier model versions were looked at on these years too. The first truly untouched test will be 2027.
 - Training on 2004 onward beat training on 2012 onward (validation PR-AUC 0.600 vs 0.587).
 
-## Scores (with 95% ranges from 500 bootstrap resamples)
+## Scores (with 95% ranges from 500 bootstrap resamples; ranges and fire counts shown are from v3, scores in bold-free rows are v4)
 | Data | Fires (big) | ROC-AUC | PR-AUC |
 |---|---|---|---|
-| **Test 2025+** | 8,564 (974) | **0.929** (0.921-0.936) | **0.634** (0.600-0.668) |
-| 2025 only | 3,603 (302) | 0.923 (0.907-0.937) | 0.587 (0.530-0.651) |
-| 2026 only | 4,961 (672) | 0.929 (0.921-0.937) | 0.656 (0.617-0.693) |
+| **Test 2025+ (v4)** | more fires than v3 | **0.923** | **0.621** |
+| Test 2025+ (v3, earlier) | 8,564 (974) | 0.929 (0.921-0.936) | 0.634 (0.600-0.668) |
+| 2025 only (v4) | | 0.915 | 0.582 |
+| 2025 only (v3) | 3,603 (302) | 0.923 (0.907-0.937) | 0.587 (0.530-0.651) |
+| 2026 only (same in v3 and v4) | 4,961 (672) | 0.929 (0.921-0.937) | 0.656 (0.617-0.693) |
 | Validation 2022-2024 | | 0.909 | 0.599 |
 
 The 2025 and 2026 PR-AUC ranges overlap, so the gap between those years may be noise. Random guessing would give a PR-AUC of about 0.114.
@@ -66,7 +83,7 @@ The 2025 and 2026 PR-AUC ranges overlap, so the gap between those years may be n
 ## Alert rules (on 2025+)
 | Rule | Big fires caught | Flagged fires that are truly big | Share of fires flagged |
 |---|---|---|---|
-| Score at or above 0.770 | 73% | 53% | 16% |
+| Score at or above 0.770 (v4: 72% / 52%; v3 shown) | 73% | 53% | 16% |
 | Top 15% by score | 71% | 54% | 15% |
 
 **By year:**
