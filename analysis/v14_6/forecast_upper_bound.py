@@ -49,8 +49,11 @@ def fetch(g, d):
     p = {"latitude": ",".join(g[LAT].astype(str)), "longitude": ",".join(g[LON].astype(str)),
          "start_date": d.strftime("%Y-%m-%d"), "end_date": (d + pd.Timedelta(days=2)).strftime("%Y-%m-%d"),
          "daily": VARS, "timezone": "auto"}
-    for a in range(4):
-        r = requests.get("https://archive-api.open-meteo.com/v1/archive", params=p, timeout=60)
+    for a in range(5):
+        try:
+            r = requests.get("https://archive-api.open-meteo.com/v1/archive", params=p, timeout=45)
+        except requests.exceptions.RequestException:
+            time.sleep(5 * (a + 1)); continue          # network hiccup: wait and retry
         if r.status_code == 429: time.sleep(BACKOFF * (a + 1)); continue
         if r.status_code != 200: return None
         res = r.json(); res = res if isinstance(res, list) else [res]
@@ -64,22 +67,21 @@ def fetch(g, d):
         return rows
     return "rate"
 
-stop = False; n_done = 0; n_todo = len(todo); n_batch = 0
-for d, grp in todo.groupby("_d"):
-    for i in range(0, len(grp), MAX_BATCH):
-        if time.time() - t0 > MAX_SECONDS: stop = True; break
-        rows = fetch(grp.iloc[i:i + MAX_BATCH], d)
-        if rows == "rate": print("rate limited; stopping. Rerun later."); stop = True; break
-        if rows:
-            pd.DataFrame(rows, columns=cols).to_csv(OUT, mode="a", header=not os.path.exists(OUT), index=False)
-            n_done += len(rows)
-        n_batch += 1
-        if n_batch % 10 == 0 or n_done >= n_todo:
-            el = time.time() - t0; rate = n_done / max(el, 1)
-            eta = (n_todo - n_done) / max(rate, 1e-9) / 60
-            print(f"progress: {n_done:,}/{n_todo:,} fires ({n_done / max(n_todo, 1):.0%}) | {rate:.1f} fires/s | about {eta:.0f} min left", flush=True)
-        time.sleep(PACE)
-    if stop: break
+from concurrent.futures import ThreadPoolExecutor
+jobs = [(grp.iloc[i:i + MAX_BATCH], d) for d, grp in todo.groupby("_d") for i in range(0, len(grp), MAX_BATCH)]
+n_done = 0; n_todo = len(todo); n_fail = 0; n_batch = 0
+with ThreadPoolExecutor(max_workers=4) as ex:
+    for k in range(0, len(jobs), 40):
+        if time.time() - t0 > MAX_SECONDS: print("time limit for this run reached; rerun to continue"); break
+        results = list(ex.map(lambda j: fetch(*j), jobs[k:k + 40]))
+        if any(r == "rate" for r in results): print("rate limited; stopping. Rerun in a few minutes."); break
+        for r in results:
+            if r:
+                pd.DataFrame(r, columns=cols).to_csv(OUT, mode="a", header=not os.path.exists(OUT), index=False)
+                n_done += len(r)
+            else: n_fail += 1
+        el = time.time() - t0; rate = n_done / max(el, 1); eta = (n_todo - n_done) / max(rate, 1e-9) / 60
+        print(f"progress: {n_done:,}/{n_todo:,} fires ({n_done / max(n_todo, 1):.0%}) | {rate:.1f} fires/s | about {eta:.0f} min left | failed batches {n_fail}", flush=True)
 got = pd.read_csv(OUT).drop_duplicates("_id"); got["_id"] = got["_id"].astype(str)
 print(f"fetched so far: {len(got):,} of {len(use):,}")
 if len(got) < 0.97 * len(use):
