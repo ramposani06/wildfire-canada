@@ -64,7 +64,7 @@ def fetch(g, d):
         return rows
     return "rate"
 
-stop = False
+stop = False; n_done = 0; n_todo = len(todo); n_batch = 0
 for d, grp in todo.groupby("_d"):
     for i in range(0, len(grp), MAX_BATCH):
         if time.time() - t0 > MAX_SECONDS: stop = True; break
@@ -72,6 +72,12 @@ for d, grp in todo.groupby("_d"):
         if rows == "rate": print("rate limited; stopping. Rerun later."); stop = True; break
         if rows:
             pd.DataFrame(rows, columns=cols).to_csv(OUT, mode="a", header=not os.path.exists(OUT), index=False)
+            n_done += len(rows)
+        n_batch += 1
+        if n_batch % 10 == 0 or n_done >= n_todo:
+            el = time.time() - t0; rate = n_done / max(el, 1)
+            eta = (n_todo - n_done) / max(rate, 1e-9) / 60
+            print(f"progress: {n_done:,}/{n_todo:,} fires ({n_done / max(n_todo, 1):.0%}) | {rate:.1f} fires/s | about {eta:.0f} min left", flush=True)
         time.sleep(PACE)
     if stop: break
 got = pd.read_csv(OUT).drop_duplicates("_id"); got["_id"] = got["_id"].astype(str)
