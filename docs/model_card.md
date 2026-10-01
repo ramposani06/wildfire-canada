@@ -2,13 +2,17 @@
 
 Date: 2026-10-01 (rerun on repaired data v4: scores, alert rules, calibration, ablation, FWI baseline; sections still on v3 are marked)
 
+## Main model (decision 2026-10-01)
+**The main model is the no-satellite model (20 features).** It uses only information known before the report day: ROC-AUC 0.901 (0.893-0.909), PR-AUC 0.531 (0.506-0.562) on 2025+. Alert threshold on its raw score: **0.688** (not 0.770). The full 24-feature model (0.923 / 0.621) is kept as an **optional satellite-enhanced model**, to be used only when satellite detections are timestamped and known to be earlier than the scoring time. Reason: the whole satellite gain comes from report-day detections whose timing relative to the report is unknown (see Satellite timing audit). The sections below that describe "the model" and the 0.770 rule refer to the full 24-feature model unless they say otherwise.
+
 ## What it does
 Predicts which Canadian wildfires will become big fires (more than 100 ha), using satellite, weather, terrain, road and population data for each fire. It uses only information from before or on the report day.
 
 ## Files (in the wildfire_project folder on Drive)
 | File | Use |
 |---|---|
-| `final_model_v14.6_clean_allyears.pkl` | **Final model for live use** (trained on all years) |
+| `final_model_v14.6_nosat_allyears.pkl` + `final_model_v14.6_nosat_info.json` | **Main model for live use** (no satellite, trained on all years, threshold 0.688). Drive only. |
+| `final_model_v14.6_clean_allyears.pkl` | Optional satellite-enhanced model (24 features, trained on all years, threshold 0.770) |
 | `final_model_v14.6_clean.pkl` | Same model trained through 2024. Gave the test scores below. Use for reports. |
 | `final_model_v14.6_clean_info.json` | Feature list, threshold, top-15% setting |
 | `final_model_v14.6_calibrator.json` | Turns the raw score into a real chance (see Calibration). Plain numbers, no pickle. |

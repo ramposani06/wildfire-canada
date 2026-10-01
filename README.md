@@ -2,7 +2,9 @@
 
 Predicting whether a newly reported Canadian wildfire will grow into a **big fire (>100 hectares)**, using only information available in the first hours after a fire is reported: weather, terrain, vegetation, satellite heat signal, and accessibility.
 
-## Results (latest model: v14.6, forward-tested on 2025-2026)
+**Main model: no satellite features (20), known before the report day.** 2025+ forward test: ROC-AUC 0.901 (0.893-0.909), PR-AUC 0.531 (0.506-0.562); alert threshold 0.688 catches 71% of big fires with 46% precision. The 24-feature satellite model below is an optional upgrade for when same-day detections are known to be available before scoring.
+
+## Results (full 24-feature model: v14.6, forward-tested on 2025-2026)
 
 Trained on 2004-2021 fires, features and threshold chosen on 2022-2024, then scored once on 2025-2026. These years were looked at by earlier model versions too, so this is a **forward test, not a perfectly untouched one**. The first truly untouched test will be 2027.
 
