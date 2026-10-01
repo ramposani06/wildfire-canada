@@ -14,7 +14,7 @@ Trained on 2004-2021 fires, features and threshold chosen on 2022-2024, then sco
 
 Scores are on the repaired v4 dataset (2,584 missing 2025 fires added; before the repair 2025+ was 0.929 / 0.634). The model card marks the few tables still on v3 (by-province, alert rules by year, QA audit). PR-AUC is the main metric: big fires are only about 8-14% of fires, so a random guess scores about 0.11.
 
-**Satellite caveat:** the gain from the satellite columns comes entirely from detections on the report day. Without satellite data, the same test gives ROC-AUC 0.900 and PR-AUC 0.528. See the satellite timing audit in the [model card](docs/model_card.md).
+**Satellite caveat:** the gain from the satellite columns comes entirely from detections on the report day. A model with no satellite columns (known before the report day) scores ROC-AUC 0.901 (0.893-0.909) and PR-AUC 0.531 (0.506-0.562) on 2025+, against 0.923 and 0.621 for the full model. See the satellite timing audit in the [model card](docs/model_card.md).
 
 **Alert rule:** raw score >= 0.770 catches 72% of big fires, and 52% of flagged fires are truly big. Flagging the top 15% by score catches 69%.
 

@@ -33,7 +33,7 @@ Predicts which Canadian wildfires will become big fires (more than 100 ha), usin
 | 2026 only | 0.929 | 0.929 | 0.656 | 0.656 |
 
   The 0.770 alert rule on 2025+ moves from 73% caught / 53% precise to 72% / 52%. The drop is small. The 2025 test grew from 3,603 to 6,184 fires, 2025+ from 8,564 to 11,145. Calibration still holds (2025: 10.4% predicted vs 9.9% actual).
-- **Which numbers are which (2026-10-01):** scores, alert rules (0.770 and top 15%), calibration, feature-group ablation, FWI baseline, and the 2004-2011 zone test were rerun on **v4**. Still on **v3** and marked as such: bootstrap ranges, alert rules by year, top-5/10/15/20/25% capture, by-province table, within-province gains, QA audit, data audit.
+- **Which numbers are which (2026-10-01):** scores, alert rules (0.770 and top 15%), calibration, feature-group ablation, FWI baseline, and the 2004-2011 zone test were rerun on **v4**. Still on **v3** and marked as such: alert rules by year, by-province table, within-province gains, QA audit, data audit.
 
 ## Model
 - LightGBM classifier: 200 trees, learning rate 0.05, max depth 8, 31 leaves, class weighting on (`is_unbalance`).
@@ -64,12 +64,12 @@ Predicts which Canadian wildfires will become big fires (more than 100 ha), usin
 ## Scores (v4, repaired data)
 | Data | Fires | ROC-AUC | PR-AUC |
 |---|---|---|---|
-| **Test 2025+** | 11,145 (11.5% big) | **0.923** | **0.621** |
+| **Test 2025+** | 11,145 (11.5% big) | **0.923** (0.916-0.930) | **0.621** (0.593-0.650) |
 | 2025 only | 6,184 | 0.915 | 0.582 |
 | 2026 only | 4,961 | 0.929 | 0.656 |
 | Validation 2022-2024 | 18,010 | 0.909 | 0.599 |
 
-Bootstrap ranges were not rerun on v4. On v3 the 2025+ range was 0.921-0.936 (ROC-AUC) and 0.600-0.668 (PR-AUC), and the 2025 and 2026 ranges overlapped, so the gap between those years may be noise. Random guessing would give a PR-AUC of about 0.115.
+The 2025+ ranges are 95% bootstrap intervals (500 resamples) on v4; the by-year rows have no ranges yet. On v3 the 2025 and 2026 ranges overlapped, so the gap between those years may be noise. Random guessing would give a PR-AUC of about 0.115.
 
 | Model (same 2025+ fires, v4) | ROC-AUC | PR-AUC |
 |---|---|---|
@@ -93,7 +93,7 @@ v14.5 was not rerun.
 
 With the fixed 0.770 rule, the share flagged follows how bad the season is (11% in a milder year, 19% in a bad one). That is expected, not a fault. The top-15% rule always flags 15%, but recall and precision then move by year.
 
-**Top-risk fires (v3, not rerun):** the top 5% of fires by score contain 33% of the big fires, the top 10% contain 55%, the top 15% contain 71%, the top 20% contain 82%, and the top 25% contain 89%.
+**Top-risk fires (v4, 2025+):** the top 5% of fires by score contain 32% of the big fires, the top 10% contain 54%, the top 15% contain 69%, the top 20% contain 80%, and the top 25% contain 87%.
 
 ## Calibration (rerun on v4, 2026-10-01)
 The calibrator (Platt, a simple curve) was fitted on 2022-2024 scores from a model trained only to 2021, then tested on 2025+. It does not change the ranking, so ROC-AUC and PR-AUC stay the same.
@@ -158,6 +158,21 @@ Question: the satellite window includes the report day, and report dates have no
 - **What it means:** if the model is scored before that day's satellite pass is known, expect about ROC-AUC 0.90 and PR-AUC 0.53 (the "Without satellite" ablation gave 0.900 and 0.528). The 0.923 / 0.621 headline holds only when same-day detections are really available at scoring time. For 2026, the report date is the first day a fire appeared in the CWFIS feed, which is itself built from satellite hotspots, so same-day detections there may be partly circular.
 - **Limit:** the database holds only about half of the stored detections (rebuilt count above 0 for 644 MODIS fires vs 1,306 stored), so the rebuilt rows are a lower bound.
 - Script: `analysis/v14_6/satellite_timing_audit.py`.
+
+### Model without satellite features (known before the report day)
+Same settings, 20 features (the four satellite columns removed). Trained to 2024, tested on 2025+ (v4). Script: `analysis/v14_6/no_satellite_model.py`.
+
+| 2025+ | Full model (24) | No satellite (20) |
+|---|---|---|
+| ROC-AUC | 0.923 (0.916-0.930) | 0.901 (0.893-0.909) |
+| PR-AUC | 0.621 (0.593-0.650) | 0.531 (0.506-0.562) |
+| 2025 only: ROC-AUC / PR-AUC | 0.915 / 0.582 | 0.887 / 0.457 |
+| 2026 only: ROC-AUC / PR-AUC | 0.929 / 0.656 | 0.912 / 0.598 |
+| Alert rule from validation | raw >= 0.770: flags 16%, catches 72%, precision 52% | raw >= 0.688: flags 18%, catches 71%, precision 46% |
+| Top 15% by score | catches 69%, precision 53% | catches 65%, precision 50% |
+| Top 5 / 10 / 20 / 25% capture | 32 / 54 / 80 / 87% | 28 / 49 / 75 / 83% |
+
+The no-satellite model needs its own threshold (0.688, not 0.770), and the existing calibrator was not fitted for it. Files (on Drive only): `final_model_v14.6_nosat_allyears.pkl`, `final_model_v14.6_nosat_info.json`. The 2025-only PR-AUC (0.457) is clearly lower than 2026 (0.598), so same-day satellite data helps most in 2025.
 
 ## Final QA audit (2026-09-29) - 14 of 14 checks passed
 - The saved model file reproduces the reported scores exactly. Its feature names, order and types match the info file.
