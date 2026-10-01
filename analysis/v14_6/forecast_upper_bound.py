@@ -14,7 +14,7 @@ FOLDER = os.environ.get("WF_FOLDER", "/content/drive/MyDrive")
 CSV    = os.environ.get("WF_CSV", "unified_dataset_2004_2026_FINAL_v4.csv")
 INFO   = "final_model_v14.6_nosat_info.json"
 OUT    = os.path.join(FOLDER, "forecast_upper_bound_weather.csv")
-N_TRAIN, MAX_BATCH, PACE, BACKOFF, MAX_SECONDS = 15000, 30, 1.0, 60, int(os.environ.get("WF_MAX_SECONDS", 3000))
+MAX_BATCH, PACE, BACKOFF, MAX_SECONDS = 30, 0.3, 60, int(os.environ.get("WF_MAX_SECONDS", 3000))
 VARS = ["temperature_2m_max", "precipitation_sum", "wind_speed_10m_max", "wind_gusts_10m_max", "relative_humidity_2m_mean"]
 NEW = ["next3_temp_max", "next3_wind_max", "next3_gust_max", "next3_precip_sum", "next3_rh_min", "next3_wind_mean"]
 LAT, LON, TARGET = "LATITUDE", "LONGITUDE", "is_big_fire"
@@ -29,11 +29,18 @@ df = df[df[LAT].between(41, 84) & df[LON].between(-142, -52)].dropna(subset=[TAR
 df["_d"] = pd.to_datetime(df["REP_DATE"].astype(str).str[:10], errors="coerce")
 df = df[df["_d"].between("2010-01-01", "2026-09-20")].copy()
 df["_id"] = df.index.astype(str)
-test = df[df["year"] >= 2025]
-train = df[(df["year"] <= 2024)].sample(N_TRAIN, random_state=7)
-use = pd.concat([train, test]); print(f"fires to fetch: train {len(train):,} + test {len(test):,}")
-
+N_TEST = int(os.environ.get("WF_N_TEST", 4000))
+N_TRAIN = int(os.environ.get("WF_N_TRAIN", 6000))
 done = set(pd.read_csv(OUT)["_id"].astype(str)) if os.path.exists(OUT) else set()
+def pick(pool, n):   # fires already fetched first, then a random top-up
+    have = pool[pool["_id"].isin(done)]
+    rest = pool[~pool["_id"].isin(done)]
+    take = have.sample(min(n, len(have)), random_state=7)
+    if len(take) < n: take = pd.concat([take, rest.sample(min(n - len(take), len(rest)), random_state=7)])
+    return take
+test = pick(df[df["year"] >= 2025], N_TEST)
+train = pick(df[df["year"] <= 2024], N_TRAIN)
+use = pd.concat([train, test]); print(f"fires to use: train {len(train):,} + test {len(test):,}")
 todo = use[~use["_id"].isin(done)]
 print(f"already fetched {len(done):,}; remaining {len(todo):,}")
 t0 = time.time(); cols = ["_id"] + NEW
