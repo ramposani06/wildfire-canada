@@ -143,6 +143,22 @@ Road distance and the two population counts do the most work for ROC-AUC. Satell
 
 FWI is built to describe fire danger, not how big a fire becomes after it starts, so a weak result here is not a fault of FWI. The baselines are simple logistic models and were trained on fewer fires than the main model. Scripts: `analysis/v14_6/ablation_feature_groups.py` and `analysis/v14_6/baseline_fwi_weather.py`.
 
+## Satellite timing audit (2026-10-01)
+Question: the satellite window includes the report day, and report dates have no clock time. Do report-day detections carry the result? The four satellite features were rebuilt from the raw detections in the database for the 2025+ test fires, with and without the report day.
+
+| 2025+ test fires | ROC-AUC | PR-AUC | 0.770 rule: caught |
+|---|---|---|---|
+| Stored features (reported scores) | 0.923 | 0.621 | 72% |
+| Rebuilt, report day included | 0.914 | 0.582 | 66% |
+| Rebuilt, report day removed | 0.899 | 0.524 | 58% |
+| All 4 satellite features set to 0 | 0.900 | 0.535 | 57% |
+
+- **Finding:** the whole satellite gain comes from detections on the report day. Detections strictly before the report day add nothing (0.899 vs 0.900 with no satellite).
+- 60% of fires with a detection have it only on the report day. Those fires are big more often (42%) than fires with an earlier detection (31%).
+- **What it means:** if the model is scored before that day's satellite pass is known, expect about ROC-AUC 0.90 and PR-AUC 0.53 (the "Without satellite" ablation gave 0.900 and 0.528). The 0.923 / 0.621 headline holds only when same-day detections are really available at scoring time. For 2026, the report date is the first day a fire appeared in the CWFIS feed, which is itself built from satellite hotspots, so same-day detections there may be partly circular.
+- **Limit:** the database holds only about half of the stored detections (rebuilt count above 0 for 644 MODIS fires vs 1,306 stored), so the rebuilt rows are a lower bound.
+- Script: `analysis/v14_6/satellite_timing_audit.py`.
+
 ## Final QA audit (2026-09-29) - 14 of 14 checks passed
 - The saved model file reproduces the reported scores exactly. Its feature names, order and types match the info file.
 - No feature is a size, end-date, year or match column.
@@ -186,6 +202,7 @@ NB (4 big fires), NS (3) and PE (0) are too small to judge. No confidence ranges
 - Also rejected earlier: multi-VIIRS variants, fuel type, PCA, extra tuning.
 
 ## Known limits
+- **Satellite features depend on same-day detections.** Without the report day, the satellite gain disappears (see Satellite timing audit). Quote 0.900 / 0.528 as the score for "known before the report day" and 0.923 / 0.621 as "with same-day satellite data".
 - **Inside one province, the ranking is weaker than the national score.** The national ROC-AUC of 0.923 is helped by the model knowing which provinces have more big fires. Within a single large province, expect ROC-AUC of about 0.80 to 0.93 (v3 numbers: BC 0.845, MB 0.814, NT 0.797, SK 0.879, ON 0.898). The v4 rerun gave BC 0.835, NT 0.821, SK 0.841.
 - **Human-caused fires are harder.** Their ranking works (ROC-AUC 0.878), but few are big, so precision is low (PR-AUC 0.209).
 - **Big fires are rare in AB and BC,** so their PR-AUC is low (about 0.29) even though the ranking is good.
