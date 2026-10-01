@@ -8,15 +8,15 @@ Trained on 2004-2021 fires, features and threshold chosen on 2022-2024, then sco
 
 | Test | Fires (big) | ROC-AUC | PR-AUC |
 |---|---|---|---|
-| 2025+ | repaired data (v4) | 0.923 | 0.621 |
-| 2025 | repaired data (v4) | 0.915 | 0.582 |
+| 2025+ | 11,145 (11.5% big) | 0.923 | 0.621 |
+| 2025 | 6,184 | 0.915 | 0.582 |
 | 2026 | 4,961 (672) | 0.929 | 0.656 |
 
-Scores are on the repaired v4 dataset (2,584 missing 2025 fires added; before the repair 2025+ was 0.929 / 0.634). The tables below the headline in the model card still show v3 values until they are rerun. PR-AUC is the main metric: big fires are only about 8-14% of fires, so a random guess scores about 0.11.
+Scores are on the repaired v4 dataset (2,584 missing 2025 fires added; before the repair 2025+ was 0.929 / 0.634). The model card marks the few tables still on v3 (by-province, alert rules by year, QA audit). PR-AUC is the main metric: big fires are only about 8-14% of fires, so a random guess scores about 0.11.
 
-**Alert rule:** raw score >= 0.770 catches 72% of big fires, and 52% of flagged fires are truly big. Flagging the top 15% by score catches 71%.
+**Alert rule:** raw score >= 0.770 catches 72% of big fires, and 52% of flagged fires are truly big. Flagging the top 15% by score catches 69%.
 
-**Calibration:** the raw scores are not probabilities. A Platt calibrator (fitted on 2022-2024) cuts the Brier score from 0.114 to 0.061 on 2025+ and keeps the average chance close to the real rate in both years. A raw score of 0.770 is about a 29% chance.
+**Calibration:** the raw scores are not probabilities. A Platt calibrator (fitted on 2022-2024) cuts the Brier score from 0.119 to 0.063 on 2025+ and keeps the average chance close to the real rate in both years. A raw score of 0.770 is about a 29% chance.
 
 ![Top-risk capture](docs/img/top_risk_capture_2025_2026.png)
 

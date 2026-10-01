@@ -1,6 +1,6 @@
 # Model card - Canada wildfire "big fire" model, v14.6
 
-Date: 2026-09-29 (final QA audit, data audit and calibration added)
+Date: 2026-10-01 (rerun on repaired data v4: scores, alert rules, calibration, ablation, FWI baseline; sections still on v3 are marked)
 
 ## What it does
 Predicts which Canadian wildfires will become big fires (more than 100 ha), using satellite, weather, terrain, road and population data for each fire. It uses only information from before or on the report day.
@@ -16,8 +16,8 @@ Predicts which Canadian wildfires will become big fires (more than 100 ha), usin
 
 ## Data
 - 142,990 fires, 2004-2026 (v4). The 2006 and 2007 fires (16,613) were missing from v2 and are now recovered. v3 had 140,406; see Data repair below.
-- 149 fires with impossible coordinates (mostly 0,0) are left out of training and testing.
-- Big fires are about 7.7% of all fires, and 11.4% in 2025+.
+- 152 fires with impossible coordinates (mostly 0,0) are left out of training and testing (142,838 rows used).
+- Big fires are about 7.7% of all fires, and 11.5% in 2025+ (11,145 test fires).
 - The 2026 fires were built separately from the live CWFIS feed (per project notes): the report date is the first day a fire appeared in the feed, so it is approximate, and small fires still burning were left out. That makes the 2026 big-fire rate (13.5%) a little high.
 
 ## Data repair (2026-10-01)
@@ -32,8 +32,8 @@ Predicts which Canadian wildfires will become big fires (more than 100 ha), usin
 | 2025 only | 0.923 | 0.915 | 0.587 | 0.582 |
 | 2026 only | 0.929 | 0.929 | 0.656 | 0.656 |
 
-  The 0.770 alert rule on 2025+ moves from 73% caught / 53% precise to 72% / 52%. The ranges overlap, so the drop is small. Calibration still holds (2025: 10.6% predicted vs 9.9% actual).
-- **Which numbers are which:** the Scores table and alert-rule lines below now show v4 where noted. Top-risk capture, by-province, ablation, FWI baseline, QA audit and calibration tables below were computed on **v3** and have not been rerun yet.
+  The 0.770 alert rule on 2025+ moves from 73% caught / 53% precise to 72% / 52%. The drop is small. The 2025 test grew from 3,603 to 6,184 fires, 2025+ from 8,564 to 11,145. Calibration still holds (2025: 10.4% predicted vs 9.9% actual).
+- **Which numbers are which (2026-10-01):** scores, alert rules (0.770 and top 15%), calibration, feature-group ablation, FWI baseline, and the 2004-2011 zone test were rerun on **v4**. Still on **v3** and marked as such: bootstrap ranges, alert rules by year, top-5/10/15/20/25% capture, by-province table, within-province gains, QA audit, data audit.
 
 ## Model
 - LightGBM classifier: 200 trees, learning rate 0.05, max depth 8, 31 leaves, class weighting on (`is_unbalance`).
@@ -61,32 +61,31 @@ Predicts which Canadian wildfires will become big fires (more than 100 ha), usin
 - 2025+ is a **forward-in-time test, not a perfectly untouched one**: earlier model versions were looked at on these years too. The first truly untouched test will be 2027.
 - Training on 2004 onward beat training on 2012 onward (validation PR-AUC 0.600 vs 0.587).
 
-## Scores (with 95% ranges from 500 bootstrap resamples; ranges and fire counts shown are from v3, scores in bold-free rows are v4)
-| Data | Fires (big) | ROC-AUC | PR-AUC |
+## Scores (v4, repaired data)
+| Data | Fires | ROC-AUC | PR-AUC |
 |---|---|---|---|
-| **Test 2025+ (v4)** | more fires than v3 | **0.923** | **0.621** |
-| Test 2025+ (v3, earlier) | 8,564 (974) | 0.929 (0.921-0.936) | 0.634 (0.600-0.668) |
-| 2025 only (v4) | | 0.915 | 0.582 |
-| 2025 only (v3) | 3,603 (302) | 0.923 (0.907-0.937) | 0.587 (0.530-0.651) |
-| 2026 only (same in v3 and v4) | 4,961 (672) | 0.929 (0.921-0.937) | 0.656 (0.617-0.693) |
-| Validation 2022-2024 | | 0.909 | 0.599 |
+| **Test 2025+** | 11,145 (11.5% big) | **0.923** | **0.621** |
+| 2025 only | 6,184 | 0.915 | 0.582 |
+| 2026 only | 4,961 | 0.929 | 0.656 |
+| Validation 2022-2024 | 18,010 | 0.909 | 0.599 |
 
-The 2025 and 2026 PR-AUC ranges overlap, so the gap between those years may be noise. Random guessing would give a PR-AUC of about 0.114.
+Bootstrap ranges were not rerun on v4. On v3 the 2025+ range was 0.921-0.936 (ROC-AUC) and 0.600-0.668 (PR-AUC), and the 2025 and 2026 ranges overlapped, so the gap between those years may be noise. Random guessing would give a PR-AUC of about 0.115.
 
-| Model (same 2025+ fires) | ROC-AUC | PR-AUC |
+| Model (same 2025+ fires, v4) | ROC-AUC | PR-AUC |
 |---|---|---|
-| v14.6 | 0.929 | 0.634 |
-| v14.5 | 0.927 | 0.625 |
-| v14.1 | 0.922 | 0.607 |
-| v14.4 (has leaky columns, do not use) | 0.916 | 0.572 |
+| v14.6 | 0.923 | 0.621 |
+| v14.1 (saved file) | 0.916 | 0.596 |
+| v14.4 (has leaky columns, do not use) | 0.884 | 0.529 |
+
+v14.5 was not rerun.
 
 ## Alert rules (on 2025+)
 | Rule | Big fires caught | Flagged fires that are truly big | Share of fires flagged |
 |---|---|---|---|
-| Score at or above 0.770 (v4: 72% / 52%; v3 shown) | 73% | 53% | 16% |
-| Top 15% by score | 71% | 54% | 15% |
+| Score at or above 0.770 | 72% | 52% | 16% |
+| Top 15% by score (cut 0.788) | 69% | 53% | 15% |
 
-**By year:**
+**By year (v3, not rerun):**
 | | 0.770 rule: flagged / caught / precision | Top 15% rule: caught / precision |
 |---|---|---|
 | 2025 | 11% / 65% / 49% | 76% / 42% |
@@ -94,49 +93,49 @@ The 2025 and 2026 PR-AUC ranges overlap, so the gap between those years may be n
 
 With the fixed 0.770 rule, the share flagged follows how bad the season is (11% in a milder year, 19% in a bad one). That is expected, not a fault. The top-15% rule always flags 15%, but recall and precision then move by year.
 
-**Top-risk fires (2025+):** the top 5% of fires by score contain 33% of the big fires, the top 10% contain 55%, the top 15% contain 71%, the top 20% contain 82%, and the top 25% contain 89%.
+**Top-risk fires (v3, not rerun):** the top 5% of fires by score contain 33% of the big fires, the top 10% contain 55%, the top 15% contain 71%, the top 20% contain 82%, and the top 25% contain 89%.
 
-## Calibration (2026-09-29)
+## Calibration (rerun on v4, 2026-10-01)
 The calibrator (Platt, a simple curve) was fitted on 2022-2024 scores from a model trained only to 2021, then tested on 2025+. It does not change the ranking, so ROC-AUC and PR-AUC stay the same.
 
 | 2025+ | Average score | Actual rate | Brier (lower is better) | Slope (1.0 = perfect) |
 |---|---|---|---|---|
-| Raw score | 0.269 | 0.114 | 0.114 | 0.87 |
-| Calibrated | 0.118 | 0.114 | **0.061** | **1.00** |
-| Guessing the overall rate | | | 0.101 | |
+| Raw score | 0.277 | 0.115 | 0.119 | 0.88 |
+| Calibrated | 0.120 | 0.115 | **0.063** | **1.00** |
+| Guessing the overall rate | | | 0.102 | |
 
-- 2025: calibrated average 0.088 vs actual 0.084. 2026: 0.140 vs 0.135. The calibrator held across both very different seasons.
-- Reliability bins: the biggest gap between predicted and actual in any group was 2.3 points; the average gap was 0.7 points.
-- **What the numbers mean:** raw score 0.770 is about a 29% chance; the top 5% of fires are about 64% or more; the median fire is about 2%.
-- The saved 2024-trained model with the same calibrator also worked (average 0.120 vs actual 0.114).
-- **Limits:** the calibrator was fitted on 2022-24 and can drift in a very different season. It was fitted for the 2024-trained model's kind of scores, so for the all-years model it is a close approximation, not a tested match. Refit it when 2027 fires are in. Small provinces and rare groups (for example human-caused fires) were not checked one by one.
+- 2025: calibrated average 0.104 vs actual 0.099. 2026: 0.140 vs 0.135. The calibrator held across both very different seasons.
+- Reliability bins: the biggest gap between predicted and actual in any group was 2.4 points; the average gap was 0.5 points.
+- **What the numbers mean:** raw score 0.770 is about a 29% chance; the top 5% of fires are about 63% or more; the median fire is about 2%.
+- The saved 2024-trained model with the same calibrator also worked (average 0.121 vs actual 0.115).
+- **Limits:** the calibrator was fitted on 2022-24 and can drift in a very different season. It was fitted for the 2024-trained model's kind of scores, so for the all-years model it is a close approximation, not a tested match. The calibrator file was not refit on v4 (2022-2024 data did not change), and the v4 check above still passes. Refit it when 2027 fires are in. Small provinces and rare groups (for example human-caused fires) were not checked one by one.
 - Use the calibrated chance only for showing a risk number. The alert rules (0.770 raw score, or top 15%) stay as they are.
 
 ## What drives the score, and how it compares with the fire weather index (2026-09-29)
 
-**Feature groups (refit on 2004-2024, tested on 2025-2026, 8,566 fires, 11.4% big).** Each group was removed in turn, then used alone.
+**Feature groups (v4; refit on 2004-2024, tested on 2025-2026, 11,150 fires, 11.5% big).** Each group was removed in turn, then used alone.
 
 | Setup | Features | ROC-AUC | PR-AUC | Big fires in top 15% |
 |---|---|---|---|---|
-| All features | 24 | 0.928 | 0.632 | 71% |
-| Without weather | 11 | 0.923 | 0.621 | 71% |
-| Without terrain | 21 | 0.922 | 0.623 | 70% |
-| Without satellite | 20 | 0.910 | 0.542 | 67% |
-| Without roads and people | 21 | 0.907 | 0.599 | 68% |
-| Without province | 23 | 0.923 | 0.620 | 69% |
-| Only weather | 13 | 0.786 | 0.357 | 45% |
-| Only terrain | 3 | 0.783 | 0.329 | 47% |
-| Only satellite | 4 | 0.735 | 0.399 | 55% |
-| Only roads and people | 3 | 0.878 | 0.473 | 62% |
-| Only province | 1 | 0.776 | 0.315 | 42% |
+| All features | 24 | 0.922 | 0.620 | 70% |
+| Without weather | 11 | 0.917 | 0.610 | 69% |
+| Without terrain | 21 | 0.916 | 0.612 | 69% |
+| Without satellite | 20 | 0.900 | 0.528 | 64% |
+| Without roads and people | 21 | 0.899 | 0.575 | 66% |
+| Without province | 23 | 0.916 | 0.607 | 68% |
+| Only weather | 13 | 0.764 | 0.325 | 41% |
+| Only terrain | 3 | 0.765 | 0.306 | 42% |
+| Only satellite | 4 | 0.739 | 0.387 | 55% |
+| Only roads and people | 3 | 0.860 | 0.455 | 59% |
+| Only province | 1 | 0.759 | 0.296 | 38% |
 
-Road distance and the two population counts do the most work for ROC-AUC. Satellite adds the most for PR-AUC. Weather adds little once the other groups are present. The groups overlap, so the drops do not add up, and differences under about 0.01 AUC may be noise (one train/test split). Roads and people probably measure how remote a fire is; that reading is not tested.
+Road distance and the two population counts do the most work for ROC-AUC. Satellite adds the most for PR-AUC. Weather adds little once the other groups are present (0.922 vs 0.917 without it). The groups overlap, so the drops do not add up, and differences under about 0.01 AUC may be noise (one train/test split). Roads and people probably measure how remote a fire is; that reading is not tested.
 
 **Against the Canadian fire weather index (FWI).** FWI columns exist for 2012-2025 (95% of 2025 fires), so this test uses 3,433 fires from 2025. Baselines were trained on 2012-2024 fires that have FWI.
 
 | Score | ROC-AUC | PR-AUC | Big fires in top 15% |
 |---|---|---|---|
-| Model v14.6 | 0.920 | 0.588 | 74% |
+| Model v14.6 (v4) | 0.920 | 0.588 | 74% |
 | 13 weather columns only (logistic) | 0.719 | 0.205 | 37% |
 | FWI columns only (logistic) | 0.673 | 0.135 | 24% |
 | Best single FWI column (BUI, 7-day mean) | 0.617 | 0.110 | 17% |
@@ -152,7 +151,7 @@ FWI is built to describe fire danger, not how big a fire becomes after it starts
 - **Sensor eras (leave-one-year-out, not forward-looking):** average ROC-AUC is 0.913 for 2004-2011 (MODIS only), 0.916 for 2012-2021 and 0.912 for 2022-2024. Nothing odd when VIIRS appears. The recovered years 2006 (0.881) and 2007 (0.937) look like any other year.
 - **Direction checks (not a strict test):** hotter, drier, windier or less rain all raised the average score, and removing satellite detections lowered it. This shows the average moves the right way, not that every fire does. The effects are small (only 49% of fires went up when hotter, 46% with less rain), so most of the ranking comes from other inputs.
 
-### By province (2025+)
+### By province (2025+, v3, not rerun)
 | Province | Fires | Big | ROC-AUC | PR-AUC |
 |---|---|---|---|---|
 | AB | 1,250 | 19 | 0.932 | 0.281 |
@@ -187,15 +186,15 @@ NB (4 big fires), NS (3) and PE (0) are too small to judge. No confidence ranges
 - Also rejected earlier: multi-VIIRS variants, fuel type, PCA, extra tuning.
 
 ## Known limits
-- **Inside one province, the ranking is weaker than the national score.** The national ROC-AUC of 0.929 is helped by the model knowing which provinces have more big fires. Within a single large province, expect ROC-AUC of about 0.80 to 0.93 (BC 0.845, MB 0.814, NT 0.797, SK 0.879, ON 0.898).
+- **Inside one province, the ranking is weaker than the national score.** The national ROC-AUC of 0.923 is helped by the model knowing which provinces have more big fires. Within a single large province, expect ROC-AUC of about 0.80 to 0.93 (v3 numbers: BC 0.845, MB 0.814, NT 0.797, SK 0.879, ON 0.898). The v4 rerun gave BC 0.835, NT 0.821, SK 0.841.
 - **Human-caused fires are harder.** Their ranking works (ROC-AUC 0.878), but few are big, so precision is low (PR-AUC 0.209).
 - **Big fires are rare in AB and BC,** so their PR-AUC is low (about 0.29) even though the ranking is good.
 - VIIRS starts in 2012, so VIIRS values are 0 for older fires. The model has no flag for this and works fine without one.
 - Only about 17% of 2025+ fires have any satellite detection in the window (4-7% before 2012 with MODIS only).
 - In v3, columns the model does not use (FWI columns, `sat_zero`, water/settlement distance, road km, nearby-fire counts) are blank for the recovered 2006-07 fires.
 - **Road and population features may partly capture how fires are managed.** In a 2004-2011 test (fires with a protection-zone name; train 2004-09, test 2010-11, 203 big fires), removing roads and population lowered ROC-AUC from 0.900 to 0.826. Adding the protection zone brought it back to 0.877, and the full model with the zone reached 0.906. So the zone explains a substantial part of what roads and population carry (about two-thirds of the gap), but they still add some signal beyond it. Zone alone reached 0.794 and roads/population alone 0.820. The sample is small, so the 0.03 left over could be noise. Protection-zone data exists only for some provinces in 2004-2011 and is empty from 2012 on, so this cannot be tested on the 2025-26 years. These are diagnostic results, not proof of cause: roads and population may also reflect accessibility, human activity, reporting delay, suppression or other geographic differences. They are kept as predictive proxies because they are known at report time.
-- **Roads and population inside a province (2025-26, province from `province_encoded`).** Gain in ROC-AUC from adding roads and population, with 95% ranges from 200 resamples: BC +0.068 (0.031 to 0.102), SK +0.051 (0.022 to 0.080), YT +0.051 (0.015 to 0.096), QC +0.028 (0.010 to 0.046), ON +0.019 (0.001 to 0.039). The gain is not clearly above zero in AB (+0.037, -0.012 to 0.105), MB, NL, NT and Parks Canada. So roads and population add signal beyond province in several provinces, most in BC, SK and YT, and little or none in others. Samples are small in some provinces (AB has only 19 big fires).
-- **Gaps in the unified file (fires per province per year).** The raw `NFDB_point_20260811` file has Manitoba 444 and Ontario 649 fires in 2025, and the unified file has **0** for both. Overall, 2025 has 3,605 fires in the unified file against 6,215 in the raw file (42% missing), mostly AB (563 of 1,338), SK (233 of 507), MB, ON and NB (256 of 440). Yukon 2022 has 0 against 289 in the raw file. Other years match the raw file to within about 10 fires per province. So the 2025 test does not include Manitoba or Ontario, and the 2025 scores and big-fire rate may change once the missing fires are added. The reason for the loss has not been found yet. The `resolved_province` column is also empty for all 2026 fires, so use `province_encoded` for province work.
+- **Roads and population inside a province (v3 data, 2025-26, province from `province_encoded`; not rerun).** A v4 rerun of the simpler province test printed only BC (+0.102), NT (+0.032) and SK (+0.013); why other provinces were missing from that printout has not been checked, so the ranges below stay as the v3 reference. Gain in ROC-AUC from adding roads and population, with 95% ranges from 200 resamples: BC +0.068 (0.031 to 0.102), SK +0.051 (0.022 to 0.080), YT +0.051 (0.015 to 0.096), QC +0.028 (0.010 to 0.046), ON +0.019 (0.001 to 0.039). The gain is not clearly above zero in AB (+0.037, -0.012 to 0.105), MB, NL, NT and Parks Canada. So roads and population add signal beyond province in several provinces, most in BC, SK and YT, and little or none in others. Samples are small in some provinces (AB has only 19 big fires).
+- **Gaps in the unified file: repaired in v4.** v3 was missing 2,584 fires in 2025 (for example Manitoba and Ontario had 0). The cause was an inner join on weather; see Data repair. Still missing: Yukon 2022 (289 fires, no report date). The `resolved_province` column is empty for all 2026 fires, so use `province_encoded` for province work.
 - This is a model that ranks reported fires by how likely they are to end up big. It is not a physical fire-growth model.
 
 ## Load and use
