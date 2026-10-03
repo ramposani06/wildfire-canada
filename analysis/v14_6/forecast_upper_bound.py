@@ -38,9 +38,14 @@ def pick(pool, n):   # fires already fetched first, then a random top-up
     take = have.sample(min(n, len(have)), random_state=7)
     if len(take) < n: take = pd.concat([take, rest.sample(min(n - len(take), len(rest)), random_state=7)])
     return take
-test = pick(df[df["year"] >= 2025], N_TEST)
-train = pick(df[df["year"] <= 2024], N_TRAIN)
+TRAIN_YEAR, TEST_YEAR = os.environ.get("WF_TRAIN_YEAR"), os.environ.get("WF_TEST_YEAR")
+if TRAIN_YEAR and TEST_YEAR:      # whole-year mode: every fire of one year trains, every fire of the next tests
+    train, test = df[df["year"] == int(TRAIN_YEAR)], df[df["year"] == int(TEST_YEAR)]
+else:
+    test = pick(df[df["year"] >= 2025], N_TEST)
+    train = pick(df[df["year"] <= 2024], N_TRAIN)
 use = pd.concat([train, test]); print(f"fires to use: train {len(train):,} + test {len(test):,}")
+use = use.drop_duplicates("_id")
 todo = use[~use["_id"].isin(done)]
 print(f"already fetched {len(done):,}; remaining {len(todo):,}")
 t0 = time.time(); cols = ["_id"] + NEW
@@ -90,7 +95,7 @@ if len(got) < 0.97 * len(use):
 # ---- A/B ----
 feats = json.load(open(find(INFO)))["features"]
 m = use.merge(got, on="_id", how="inner").dropna(subset=NEW)
-tr, te = m[m["year"] <= 2024], m[m["year"] >= 2025]
+tr, te = m[m["_id"].isin(set(train["_id"]))], m[m["_id"].isin(set(test["_id"]))]
 PARAMS = dict(n_estimators=200, learning_rate=0.05, max_depth=8, num_leaves=31, is_unbalance=True, random_state=42, verbose=-1)
 ytr, yte = tr[TARGET].astype(int).values, te[TARGET].astype(int).values
 print(f"\ntrain {len(tr):,} | test {len(te):,} ({yte.mean():.3f} big)")
