@@ -236,6 +236,20 @@ CanCPLD cloud-to-ground flashes (0.1 degree, 3-hourly, 2004-2024). Five columns:
 
 Fires with lightning nearby in the previous week are big about twice as often (0 flashes: 8.1%, 1-50 flashes: 16-17%), but the model already gets most of that from its other columns. The gain is too small to justify a live lightning feed, so lightning is left out.
 
+## Ensemble test (2026-10-03)
+No-satellite model (20 features, v4). Five models (LightGBM, bagged LightGBM, XGBoost, CatBoost, scikit-learn HistGradientBoosting), combined by equal-weight rank average, nothing tuned on the test years. Script: `analysis/v14_6/ensemble_test.py`.
+
+| PR-AUC | Validation 2022-24 | Forward test 2025+ |
+|---|---|---|
+| LightGBM (current) | 0.527 | 0.531 |
+| Best single other model | 0.531 (bagged LightGBM) | 0.542 (XGBoost) |
+| Ensemble of all 5 | 0.530 | 0.539 |
+| Ensemble of LightGBM + XGBoost + CatBoost | 0.528 | 0.542 |
+| Gain of the 3-model ensemble (95% range) | +0.002 (-0.003 to +0.007) | +0.011 (+0.004 to +0.017) |
+| Gain of the 5-model ensemble (95% range) | +0.003 (-0.002 to +0.008) | +0.007 (0.000 to +0.014) |
+
+The gain is about +0.01 on the forward test and about zero on the validation years, so it is not consistent. The ensemble costs three to five times the compute and complexity at scoring time, so the single LightGBM stays as the main model.
+
 ## Final QA audit (2026-09-29) - 14 of 14 checks passed
 - The saved model file reproduces the reported scores exactly. Its feature names, order and types match the info file.
 - No feature is a size, end-date, year or match column.
