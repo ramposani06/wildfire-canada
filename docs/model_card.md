@@ -248,7 +248,7 @@ No-satellite model (20 features, v4). Five models (LightGBM, bagged LightGBM, XG
 | Gain of the 3-model ensemble (95% range) | +0.002 (-0.003 to +0.007) | +0.011 (+0.004 to +0.017) |
 | Gain of the 5-model ensemble (95% range) | +0.003 (-0.002 to +0.008) | +0.007 (0.000 to +0.014) |
 
-The gain is about +0.01 on the forward test and about zero on the validation years, so it is not consistent. The ensemble costs three to five times the compute and complexity at scoring time, so the single LightGBM stays as the main model.
+The gain is about +0.01 on the forward test and about zero on the validation years, so it is not consistent. Both ensembles were written into the script before it was run, but the 3-model one is the best of the two on 2025+, and 2025+ has already been used for other decisions, so treat +0.011 as exploratory, not a clean result. Re-test the chosen ensemble on 2027 before using it as the headline. The ensemble costs three to five times the compute and complexity at scoring time, so the single LightGBM stays as the main model.
 
 ## Final QA audit (2026-09-29) - 14 of 14 checks passed
 - The saved model file reproduces the reported scores exactly. Its feature names, order and types match the info file.
