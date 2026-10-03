@@ -199,6 +199,12 @@ Even with a perfect forecast, PR-AUC did not move. ROC-AUC rose a little. A real
 
 Training on 2022-2024 (17,790 fires) and testing on 2025 gave the same picture: ROC-AUC 0.865 to 0.879 (+0.014, 0.009 to 0.020) and PR-AUC 0.429 to 0.455 (+0.026, 0.008 to 0.042). So the gain holds with more training data. This run shows a small gain, above zero, where the sample run showed none. Both are the best case (perfect forecast), so a real forecast should gain less, likely about +0.01 PR-AUC or less. Forecast weather is not built into the model.
 
+## Raw NFDB column audit and cause test (2026-10-03)
+Scripts: `analysis/v14_6/nfdb_column_audit.py`, `analysis/v14_6/cause_feature_test.py`.
+- **Not usable:** `OUT_DATE`, `SIZE_HA`, `CFS_NOTE2` (filled in after the fire); `ATTK_DATE` (93-100% blank); `RESPONSE` (the agency's own decision, 85% blank, and a fire left to "monitor" is big 41% of the time because it is monitored, so using it would be circular).
+- **Prescribed burns** (`PRESCRIBED` = PB, `CAUSE2` = H-PB) are about 800 fires out of 448,618 and are big 27-30% of the time. They are not wildfires and should be excluded when the data is next rebuilt.
+- **Cause** (natural / human / unknown) separates big fires strongly on its own (2025+: 21.7% big for natural, 2.4% for human, 4.6% for unknown), but adding it to the no-satellite model gave **no gain**: ROC-AUC 0.901 to 0.902, PR-AUC 0.531 to 0.530 (gain -0.001, 95% range -0.006 to +0.003). The model already gets this information from road distance, population, province and weather, so cause is left out and its timing does not matter.
+
 ## Final QA audit (2026-09-29) - 14 of 14 checks passed
 - The saved model file reproduces the reported scores exactly. Its feature names, order and types match the info file.
 - No feature is a size, end-date, year or match column.
