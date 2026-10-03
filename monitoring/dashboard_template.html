@@ -65,8 +65,8 @@ summary:focus-visible,button:focus-visible{outline:2px solid var(--c1);outline-o
 <div class="wrap">
   <header>
     <h1>Wildfire model monitor</h1>
-    <p class="sub">Weekly health check for the big-fire model (v14.6). A big fire is one over 100 hectares. Each fire gets a score when it is reported, and a score of 0.77 or higher raises an alert.</p>
-    <div class="meta">Model v14.6 · fires reported Jan 2022 to Sep 2026 · reference period 2022–24 · forward test 2025+</div>
+    <p class="sub">Health check for the big-fire model (v14.6, no satellite features). A big fire is one over 100 hectares. Each fire gets a score when it is reported, and a score of 0.688 or higher raises an alert.</p>
+    <div class="meta">Model v14.6 no-satellite (20 features) · fires reported Jan 2022 to Sep 2026 · reference 2022–24 (model trained to 2021 + calibrator fitted on 2022–24) · forward test 2025+</div>
   </header>
 
   <section class="status" id="status" aria-label="Status summary"></section>
@@ -74,7 +74,7 @@ summary:focus-visible,button:focus-visible{outline:2px solid var(--c1);outline-o
   <section class="card">
     <h2>Alerts against actual big fires, by month</h2>
     <p class="d">Share of reported fires that raised an alert, next to the share that really became big fires. The two lines should move together. Months with fewer than 30 fires are left out.</p>
-    <div class="legend"><span><i style="background:var(--c1)"></i>Alert rate (score ≥ 0.77)</span><span><i style="background:var(--c2)"></i>Actual big-fire rate</span></div>
+    <div class="legend"><span><i style="background:var(--c1)"></i>Alert rate (score ≥ 0.688)</span><span><i style="background:var(--c2)"></i>Actual big-fire rate</span></div>
     <div id="ch-month"></div>
   </section>
 
