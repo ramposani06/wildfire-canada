@@ -5,6 +5,31 @@ Date: 2026-10-01 (rerun on repaired data v4: scores, alert rules, calibration, a
 ## Main model (decision 2026-10-01)
 **The main model is the no-satellite model (20 features).** It uses only information known before the report day: ROC-AUC 0.901 (0.893-0.909), PR-AUC 0.531 (0.506-0.562) on 2025+. Alert threshold on its raw score: **0.688** (not 0.770). The full 24-feature model (0.923 / 0.621) is kept as an **optional satellite-enhanced model**, to be used only when satellite detections are timestamped and known to be earlier than the scoring time. Reason: the whole satellite gain comes from report-day detections whose timing relative to the report is unknown (see Satellite timing audit). The sections below that describe "the model" and the 0.770 rule refer to the full 24-feature model unless they say otherwise.
 
+## Update: v14.7 (2026-10-03) - main model is now 22 features
+**Main model = v14.7: the 20 no-satellite features plus latitude and longitude.** Single LightGBM, no ensemble. Train to 2024, one test on 2025+ (11,145 fires):
+| | v14.6 no-satellite | v14.7 |
+|---|---|---|
+| ROC-AUC | 0.901 (0.893-0.909) | **0.904 (0.897-0.912)** |
+| PR-AUC | 0.531 (0.506-0.562) | **0.541 (0.513-0.571)** |
+| 2025 / 2026 PR-AUC | 0.457 / 0.598 | 0.471 / 0.599 |
+| Alert threshold (65% recall on 2022-24) | 0.688 | **0.695** |
+| Flags / catches / precision | 18% / 71% / 46% | 17% / 70% / 47% |
+- Top 5/10/15/20/25% capture: 29 / 50 / 66 / 75 / 83%.
+- Own Platt calibrator (coef 0.8972, intercept -1.7637, fitted on 2022-24 scores of the model trained to 2021). Brier 0.120 to 0.069. Average chance 12.3% vs actual 11.5%. The 0.695 threshold is about a 26% chance.
+- Script: `analysis/v14_6/build_v14_7.py`. Files on Drive: `final_model_v14.7_allyears.pkl`, `final_model_v14.7_info.json`.
+- The monitoring dashboard still shows the 20-feature version until its export is rerun with `WF_VARIANT=loc`. Sections below that say "no-satellite model" or "0.688" describe v14.6 unless they say otherwise.
+
+### Exact location and other size cutoffs (`analysis/v14_6/location_and_cutoff_test.py`)
+- Adding latitude and longitude to the 20 features (train to 2021): PR-AUC +0.012 on 2022-24 (range +0.004 to +0.021) and +0.014 on 2025+ (+0.004 to +0.026). Small but positive in both periods, so it was adopted.
+- Other cutoffs, same 20 features, 2025+: PR-AUC is higher for smaller cutoffs only because more fires qualify. Lift over a random guess is steady (>10 ha 3.8x, >100 ha 4.6x, >500 ha 5.1x, >1000 ha 4.9x) and ROC-AUC stays 0.89-0.90. The 100 ha line is not what limits the score.
+
+### Aspect and wind direction (rejected)
+Eight columns: aspect (sin, cos) from the 30 m Copernicus DEM, wind direction, steadiness and speed from ERA5-Land for the 3 whole days before the report day, "wind blowing uphill" and uphill wind x slope. Script: `analysis/v14_6/aspect_wind_test.py`.
+- A first small test (train 2022-24, test 2025 only, 6,054 fires) looked good: PR-AUC +0.020 (+0.004 to +0.036). With lat/lon it fell to +0.010 (-0.003 to +0.024).
+- The full test (same protocol as the main model) shows nothing. Train 2004-2021, test 2022-24: -0.001 (range -0.006 to +0.005). Train 2004-2024, test 2025-26: +0.002 (-0.005 to +0.008). With lat/lon in the model: -0.006 (-0.011 to 0.000) and -0.004 (-0.011 to +0.002). Aspect alone: +0.000 and +0.001.
+- Big-fire rate by uphill or downhill wind on slopes over 5 degrees is flat (about 6-9%, no trend).
+- Lesson: a gain seen in one small sample (+0.020) did not survive the full test. Not added.
+
 ## What it does
 Predicts which Canadian wildfires will become big fires (more than 100 ha), using satellite, weather, terrain, road and population data for each fire. It uses only information from before or on the report day.
 

@@ -2,7 +2,7 @@
 
 Predicting whether a newly reported Canadian wildfire will grow into a **big fire (>100 hectares)**, using only information available in the first hours after a fire is reported: weather, terrain, vegetation, satellite heat signal, and accessibility.
 
-**Main model: no satellite features (20), known before the report day.** 2025+ forward test: ROC-AUC 0.901 (0.893-0.909), PR-AUC 0.531 (0.506-0.562); alert threshold 0.688 catches 71% of big fires with 46% precision. The 24-feature satellite model below is an optional upgrade for when same-day detections are known to be available before scoring.
+**Main model (v14.7): 22 features, no satellite, all known before the report day** (20 weather/land/people features plus latitude and longitude). 2025+ forward test: ROC-AUC 0.904 (0.897-0.912), PR-AUC 0.541 (0.513-0.571); alert threshold 0.695 catches 70% of big fires with 47% precision. The 24-feature satellite model below is an optional upgrade for when same-day detections are known to be available before scoring.
 
 ## Results (full 24-feature model: v14.6, forward-tested on 2025-2026)
 
@@ -34,7 +34,7 @@ Removing three "remoteness" columns (road distance and two population counts) co
 
 ### Monitoring
 
-A one-page health check (alert rate by month, calibration, missing data, drift) is in [`monitoring/`](monitoring/). Open `monitoring/dashboard.html` in a browser. Numbers come from `monitoring/export_monitoring_tables.py`, and 2022-24 scores in it are in-sample.
+A one-page health check (alert rate by month, calibration, missing data, drift) is in [`monitoring/`](monitoring/). Open `monitoring/dashboard.html` in a browser (it still shows the 20-feature v14.6 no-satellite model until the v14.7 export is rerun). Numbers come from `monitoring/export_monitoring_tables.py`, and 2022-24 scores in it are in-sample.
 
 Full details, QA audit, data audit and limits: [`docs/model_card.md`](docs/model_card.md). The older v14.1 card is kept in [`docs/archive/`](docs/archive/model_card_v14_1.md).
 
