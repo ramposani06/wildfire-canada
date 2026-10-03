@@ -106,7 +106,7 @@ summary:focus-visible,button:focus-visible{outline:2px solid var(--c1);outline-o
     <h2>How to read this</h2>
     <ul>
       <li>Scores from 2022–24 come from a model trained through 2024, so those months are in-sample and look better than a real test. Only 2025 and 2026 are a true forward test.</li>
-      <li>The chance estimate is a simple curve fitted on 2022–24 scores from an earlier model. It is checked here each season and should be refitted if the dots drift off the line.</li>
+      <li>The chance estimate is a simple curve fitted on 2022–24 scores from a model trained to 2021. It is checked here each season and should be refitted if the dots drift off the line.</li>
       <li>The 2026 season starts in April in this data, so there are no January to March points.</li>
       <li>Numbers come from <span class="num">monitoring/export_monitoring_tables.py</span>, which writes a small summary file with no raw fire records.</li>
     </ul>
@@ -141,9 +141,9 @@ function hideTip(){tip.style.display='none'}
     {k:'Alert rate',cls:'good',lab:'Tracking reality',
      p:`June 2026 was a heavy month: ${pct(jun26.alert_rate,0)} of fires alerted and ${pct(jun26.big_rate,0)} became big fires.`},
     {k:'Missing data',cls:missMax>0.05?'bad':(missMax>0.01?'warn':'good'),lab:missMax>0.05?'Too much missing':(missMax>0.01?'Watch one column':'Clean'),
-     p:`Highest gap in 2025–26: ${worstMiss.f} at ${pct(worstMiss.v)}. Everything else is under 1.1%.`},
+     p:`Highest gap in 2025–26: ${worstMiss.f} at ${pct(worstMiss.v)}. Everything else is lower.`},
     {k:'Input drift',cls:red.length?'warn':(amber.length?'warn':'good'),lab:red.length?`${red.length} to check, ${amber.length} to watch`:'Stable',
-     p:`Province mix changed in 2025 (PSI ${D.drift.find(f=>f.feature==='province_encoded').psi_2025.toFixed(2)}). Model score PSI is only ${D.score_psi['2025'].toFixed(2)}, so the score itself is steady.`}
+     p:`${amber.length?'Only '+amber[0][2]+' ('+amber[0][0]+', PSI '+amber[0][1].toFixed(2)+') is above 0.10.':'No feature is above 0.10.'} Model score PSI is ${D.score_psi['2025'].toFixed(2)} (2025) and ${D.score_psi['2026'].toFixed(2)} (2026), so the score is steady.`}
   ];
   const icon={good:'✓',warn:'!',bad:'✕'};
   $('#status').innerHTML=cards.map(c=>`<div class="st"><div class="k">${c.k}</div><span class="pill ${c.cls}"><span aria-hidden="true">${icon[c.cls]}</span>${c.lab}</span><p>${c.p}</p></div>`).join('');
