@@ -172,6 +172,32 @@ Road distance and the two population counts do the most work for ROC-AUC. Satell
 
 FWI is built to describe fire danger, not how big a fire becomes after it starts, so a weak result here is not a fault of FWI. The baselines are simple logistic models and were trained on fewer fires than the main model. Scripts: `analysis/v14_6/ablation_feature_groups.py` and `analysis/v14_6/baseline_fwi_weather.py`.
 
+## Feature importance, all columns (2026-10-03)
+Scripts: `analysis/v14_6/feature_importance_all.py`, `analysis/v14_6/feature_importance_everything.py`. Model trained to 2024, scored on 2025+ (11,145 fires). The data file holds 51 usable columns (22 in v14.7 plus 29 extra); 26 more were skipped (IDs, text, dates, and fields filled in after the fire).
+
+**The 22 v14.7 features, three views.** "Shuffle" = PR-AUC lost when one column is scrambled on the test fires. "Drop" = PR-AUC lost when the model is retrained without it. Many columns carry the same information, so the drop numbers are small even where the shuffle numbers are large.
+| Feature | Group | Shuffle | Drop |
+|---|---|---|---|
+| LATITUDE | location | 0.089 | 0.012 |
+| dist_to_road_m | roads & people | 0.055 | 0.002 |
+| province_encoded | land | 0.036 | 0.005 |
+| pop_within_10km | roads & people | 0.032 | -0.001 |
+| pop_within_25km | roads & people | 0.030 | -0.001 |
+| NDVI | land | 0.022 | 0.013 |
+| LONGITUDE | location | 0.019 | 0.001 |
+| elevation | land | 0.004 | 0.003 |
+| Each of the 13 weather columns | weather | 0.002 or less | within +-0.004 |
+
+**Whole groups removed at once (retrain):** without weather PR-AUC 0.525 (-0.015), without roads & people 0.529 (-0.012), without location 0.531 (-0.010), without land 0.534 (-0.006). Weather columns look weak one by one but are the group that costs the most to lose, because they cover for each other.
+
+**Satellite for reference (26 features):** PR-AUC 0.630. `modis_max_frp_early7d` is the top column by shuffle (0.061), but the satellite timing problem still applies.
+
+**Re-testing the 29 extra columns** (FWI/DC/BUI/ISI/FFMC, cause, fire type, protection zone, national park, prescribed flag, month, day, day of year, Alberta flag, road length, settlement and water distance, nearby-fire counts, resolved province). Each was added alone to v14.7 on two forward splits (train to 2021 -> 2022-24, and train to 2024 -> 2025+):
+- **None helped on both splits.** Best: cause (+0.003 and +0.002) and day of year (+0.001 and +0.003), both under the +0.003 bar on at least one split.
+- All 29 together: PR-AUC 0.530 vs 0.541 for v14.7 (-0.011, 95% range -0.023 to +0.003). More columns made it slightly worse.
+- **Caveat:** FWI, DC, BUI, ISI and FFMC are 63% empty, and road length, settlement and water distance and nearby-fire counts are 44% empty (they do not exist for all years). Their negative results on 2025+ may partly come from that missing data rather than from the columns being useless. Earlier tests on complete subsets also found no gain.
+- Conclusion: v14.7 stays at 22 features.
+
 ## Satellite timing audit (2026-10-01)
 Question: the satellite window includes the report day, and report dates have no clock time. Do report-day detections carry the result? The four satellite features were rebuilt from the raw detections in the database for the 2025+ test fires, with and without the report day.
 
