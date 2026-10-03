@@ -5,7 +5,8 @@ import numpy as np, pandas as pd
 warnings.filterwarnings("ignore")
 
 FOLDER = os.environ.get("WF_FOLDER", "/content/drive/MyDrive")
-CSV    = os.environ.get("WF_CSV", "unified_dataset_2004_2026_FINAL_v3.csv")
+CSV    = os.environ.get("WF_CSV", "unified_dataset_2004_2026_FINAL_v4.csv")
+VARIANT = os.environ.get("WF_VARIANT", "nosat")   # "nosat" = main model (20 features); "full" = 24-feature satellite model
 MODEL, INFO, CAL = ("final_model_v14.6_clean.pkl", "final_model_v14.6_clean_info.json",
                     "final_model_v14.6_calibrator.json")
 TARGET, YEAR = "is_big_fire", "year"
@@ -18,9 +19,27 @@ def find(name):
     raise FileNotFoundError(name)
 
 df = pd.read_csv(find(CSV), low_memory=False)
-info = json.load(open(find(INFO))); cal = json.load(open(find(CAL)))
-feats, thr = info["features"], float(info["threshold_recall"])
-model = joblib.load(find(MODEL))
+if VARIANT == "full":
+    info = json.load(open(find(INFO))); cal = json.load(open(find(CAL)))
+    feats, thr = info["features"], float(info["threshold_recall"])
+    model = joblib.load(find(MODEL))
+else:
+    # main model: no satellite columns. Needs its own calibrator and threshold, so both are fitted here the same way as before:
+    # model trained to 2021 -> scores on 2022-24 -> Platt curve and a threshold for ~65% recall; reporting model trained to 2024.
+    from lightgbm import LGBMClassifier
+    from sklearn.linear_model import LogisticRegression
+    SAT = ["modis_count_early7d", "modis_max_frp_early7d", "viirs_count_early7d", "viirs_max_frp_early7d"]
+    feats = [f for f in json.load(open(find(INFO)))["features"] if f not in SAT]
+    P = dict(n_estimators=200, learning_rate=0.05, max_depth=8, num_leaves=31, is_unbalance=True, random_state=42, verbose=-1)
+    ok = df["LATITUDE"].between(41, 84) & df["LONGITUDE"].between(-142, -52) & df[TARGET].notna()
+    df = df[ok].reset_index(drop=True); yy = df[TARGET].astype(int).values; yr = df[YEAR].values
+    m21 = LGBMClassifier(**P).fit(df.loc[yr <= 2021, feats], yy[yr <= 2021])
+    va = (yr >= 2022) & (yr <= 2024); sv = m21.predict_proba(df.loc[va, feats])[:, 1]
+    thr = float(np.sort(sv[yy[va] == 1])[int(0.35 * (yy[va] == 1).sum())])
+    pv = np.clip(sv, EPS, 1 - EPS); lr = LogisticRegression(C=1e6).fit(np.log(pv / (1 - pv)).reshape(-1, 1), yy[va])
+    cal = {"coef": float(lr.coef_[0][0]), "intercept": float(lr.intercept_[0])}
+    model = LGBMClassifier(**P).fit(df.loc[yr <= 2024, feats], yy[yr <= 2024])
+    print(f"no-satellite model: threshold {thr:.3f}, calibrator {cal}")
 
 # month: use REP_DATE (flexible parse), fall back to MONTH columns
 d = pd.to_datetime(df["REP_DATE"].astype(str).str[:10], errors="coerce")
@@ -34,7 +53,7 @@ df["alert"] = df["raw"] >= thr
 def period(y): return "2022-24" if y <= 2024 else str(int(y))
 df["period"] = df[YEAR].map(period)
 
-out = {"threshold": thr, "note": "2022-24 scores come from a model trained through 2024 (in-sample); 2025+ is forward."}
+out = {"variant": VARIANT, "features": len(feats), "threshold": thr, "note": "2022-24 scores come from a model trained through 2024 (in-sample); 2025+ is forward."}
 m = df.groupby([YEAR, "_month"]).agg(n=("raw", "size"), alert_rate=("alert", "mean"),
         mean_raw=("raw", "mean"), mean_cal=("cal", "mean"), big_rate=(TARGET, "mean")).reset_index()
 out["monthly"] = m.round(4).rename(columns={YEAR: "year", "_month": "month"}).to_dict("records")
