@@ -178,6 +178,17 @@ Same settings, 20 features (the four satellite columns removed). Trained to 2024
 
 The no-satellite model needs its own threshold (0.688, not 0.770), and the existing calibrator was not fitted for it. Files (on Drive only): `final_model_v14.6_nosat_allyears.pkl`, `final_model_v14.6_nosat_info.json`. The 2025-only PR-AUC (0.457) is clearly lower than 2026 (0.598), so same-day satellite data helps most in 2025.
 
+## Test: would knowing the next 3 days of weather help? (2026-10-03)
+Upper-bound test with ACTUAL weather for the report day and the next 2 days (a perfect forecast, not a real one). No-satellite model, same fires with and without 6 new columns. Sample: 6,000 training fires (random, 2010-2024) and 4,000 test fires (2025+, 11.6% big). Script: `analysis/v14_6/forecast_upper_bound.py`.
+
+| | ROC-AUC | PR-AUC | Top 15% catches |
+|---|---|---|---|
+| Without next-3-day weather | 0.868 | 0.464 | 58% |
+| With next-3-day actual weather | 0.882 | 0.466 | 60% |
+| Gain (95% range) | +0.013 (+0.007 to +0.020) | +0.001 (-0.020 to +0.023) | |
+
+Even with a perfect forecast, PR-AUC did not move. ROC-AUC rose a little. A real forecast would gain less, so forecast weather was **not built**. Scores in this test are lower than the headline numbers because the model trained on 6,000 fires, not 131,000; compare only the two rows.
+
 ## Final QA audit (2026-09-29) - 14 of 14 checks passed
 - The saved model file reproduces the reported scores exactly. Its feature names, order and types match the info file.
 - No feature is a size, end-date, year or match column.
