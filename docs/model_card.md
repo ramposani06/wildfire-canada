@@ -224,6 +224,18 @@ Report times are not in the data, so this shows the whole curve: the full model 
 - **Before noon, satellite adds nothing. From mid-afternoon on, it adds about +0.05 PR-AUC** (more with the full detection set).
 - **Operational rule:** use the no-satellite model for fires scored before about 15:00 local on the report day. Use the satellite model from about 15:00 on the report day, or re-score the next morning once the day's detections are in.
 
+## Lightning test (2026-10-03)
+CanCPLD cloud-to-ground flashes (0.1 degree, 3-hourly, 2004-2024). Five columns: flashes in the 3x3 cells around the fire over the 1, 3 and 7 whole UTC days before the report day, and in the 21x21 cells (about 2 degrees) over 3 and 7 days. Nothing from the report day is used. No-satellite model, train 2004-2021, test 2022-2024 (18,010 fires). The data ends in 2024, so 2025+ could not be tested. Script: `analysis/v14_6/lightning_feature_test.py`.
+
+| | ROC-AUC | PR-AUC | Gain (95% range) |
+|---|---|---|---|
+| Without lightning | 0.894 | 0.527 | |
+| With lightning | 0.895 | 0.532 | ROC-AUC +0.000 (-0.001 to +0.001), PR-AUC +0.005 (0.000 to +0.010) |
+| Natural-cause fires only, without | 0.839 | 0.537 | |
+| Natural-cause fires only, with | 0.840 | 0.543 | PR-AUC +0.006 (-0.000 to +0.011) |
+
+Fires with lightning nearby in the previous week are big about twice as often (0 flashes: 8.1%, 1-50 flashes: 16-17%), but the model already gets most of that from its other columns. The gain is too small to justify a live lightning feed, so lightning is left out.
+
 ## Final QA audit (2026-09-29) - 14 of 14 checks passed
 - The saved model file reproduces the reported scores exactly. Its feature names, order and types match the info file.
 - No feature is a size, end-date, year or match column.
