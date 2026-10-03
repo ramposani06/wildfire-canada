@@ -6,7 +6,7 @@ warnings.filterwarnings("ignore")
 
 FOLDER = os.environ.get("WF_FOLDER", "/content/drive/MyDrive")
 CSV    = os.environ.get("WF_CSV", "unified_dataset_2004_2026_FINAL_v4.csv")
-VARIANT = os.environ.get("WF_VARIANT", "nosat")   # "nosat" = main model (20 features); "full" = 24-feature satellite model
+VARIANT = os.environ.get("WF_VARIANT", "nosat")   # "nosat" = 20 features; "loc" = v14.7, 20 + latitude/longitude; "full" = 24-feature satellite model
 MODEL, INFO, CAL = ("final_model_v14.6_clean.pkl", "final_model_v14.6_clean_info.json",
                     "final_model_v14.6_calibrator.json")
 TARGET, YEAR = "is_big_fire", "year"
@@ -30,6 +30,7 @@ else:
     from sklearn.linear_model import LogisticRegression
     SAT = ["modis_count_early7d", "modis_max_frp_early7d", "viirs_count_early7d", "viirs_max_frp_early7d"]
     feats = [f for f in json.load(open(find(INFO)))["features"] if f not in SAT]
+    if VARIANT == "loc": feats = feats + ["LATITUDE", "LONGITUDE"]
     P = dict(n_estimators=200, learning_rate=0.05, max_depth=8, num_leaves=31, is_unbalance=True, random_state=42, verbose=-1)
     ok = df["LATITUDE"].between(41, 84) & df["LONGITUDE"].between(-142, -52) & df[TARGET].notna()
     df = df[ok].reset_index(drop=True); yy = df[TARGET].astype(int).values; yr = df[YEAR].values
