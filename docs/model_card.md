@@ -205,6 +205,25 @@ Scripts: `analysis/v14_6/nfdb_column_audit.py`, `analysis/v14_6/cause_feature_te
 - **Prescribed burns** (`PRESCRIBED` = PB, `CAUSE2` = H-PB) are about 800 fires out of 448,618 and are big 27-30% of the time. They are not wildfires and should be excluded when the data is next rebuilt.
 - **Cause** (natural / human / unknown) separates big fires strongly on its own (2025+: 21.7% big for natural, 2.4% for human, 4.6% for unknown), but adding it to the no-satellite model gave **no gain**: ROC-AUC 0.901 to 0.902, PR-AUC 0.531 to 0.530 (gain -0.001, 95% range -0.006 to +0.003). The model already gets this information from road distance, population, province and weather, so cause is left out and its timing does not matter.
 
+## Satellite benefit by time of day (2026-10-03)
+Report times are not in the data, so this shows the whole curve: the full model (trained with the whole report day) is scored on 2025+ fires, but only detections before local hour H on the report day are visible (local time approximated from longitude). Script: `analysis/v14_6/satellite_cutoff_sensitivity.py`. The rebuilt rows use only the detections stored in the database (about half of those behind the stored features), so they are a lower bound.
+
+| Detections visible before (local) | ROC-AUC | PR-AUC | 0.770 rule catches |
+|---|---|---|---|
+| No satellite at all | 0.900 | 0.535 | 57% |
+| 00:00 (none from the report day) | 0.900 | 0.530 | 59% |
+| 09:00 | 0.901 | 0.537 | 59% |
+| 12:00 | 0.903 | 0.544 | 60% |
+| 15:00 | 0.914 | 0.582 | 66% |
+| 18:00 | 0.914 | 0.583 | 66% |
+| 21:00 | 0.918 | 0.590 | 67% |
+| 24:00 (whole report day) | 0.919 | 0.591 | 67% |
+| Stored features (as reported) | 0.923 | 0.621 | 72% |
+
+- The earliest report-day detection is at a local solar hour of 13 (median); 90% are by hour 15. These are the afternoon satellite passes.
+- **Before noon, satellite adds nothing. From mid-afternoon on, it adds about +0.05 PR-AUC** (more with the full detection set).
+- **Operational rule:** use the no-satellite model for fires scored before about 15:00 local on the report day. Use the satellite model from about 15:00 on the report day, or re-score the next morning once the day's detections are in.
+
 ## Final QA audit (2026-09-29) - 14 of 14 checks passed
 - The saved model file reproduces the reported scores exactly. Its feature names, order and types match the info file.
 - No feature is a size, end-date, year or match column.
