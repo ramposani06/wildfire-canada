@@ -197,7 +197,7 @@ Even with a perfect forecast, PR-AUC did not move. ROC-AUC rose a little. A real
 | With next-3-day actual weather | 0.876 | 0.462 | 62% |
 | Gain (95% range) | +0.011 (+0.005 to +0.017) | +0.027 (+0.008 to +0.047) | |
 
-This run shows a small gain, above zero, where the sample run showed none. Both are the best case (perfect forecast), so a real forecast should gain less, likely about +0.01 PR-AUC or less. Forecast weather is not built into the model.
+Training on 2022-2024 (17,790 fires) and testing on 2025 gave the same picture: ROC-AUC 0.865 to 0.879 (+0.014, 0.009 to 0.020) and PR-AUC 0.429 to 0.455 (+0.026, 0.008 to 0.042). So the gain holds with more training data. This run shows a small gain, above zero, where the sample run showed none. Both are the best case (perfect forecast), so a real forecast should gain less, likely about +0.01 PR-AUC or less. Forecast weather is not built into the model.
 
 ## Final QA audit (2026-09-29) - 14 of 14 checks passed
 - The saved model file reproduces the reported scores exactly. Its feature names, order and types match the info file.
