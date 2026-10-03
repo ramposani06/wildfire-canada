@@ -82,4 +82,7 @@ out["drift"] = [{"feature": f, "psi_2025": psi(ref[f], df[df.period == "2025"][f
 out["score_psi"] = {"2025": psi(ref["raw"], df[df.period == "2025"]["raw"]),
                     "2026": psi(ref["raw"], df[df.period == "2026"]["raw"])}
 json.dump(out, open("monitoring_summary.json", "w"), indent=1, default=float)
-print(json.dumps(out, indent=1, default=float))
+dest = os.path.join(FOLDER, f"monitoring_summary_v4_{VARIANT}.json")
+json.dump(out, open(dest, "w"), indent=1, default=float)
+print("Saved full summary to:", dest)
+print("Score drift (PSI):", out["score_psi"], "| features over 0.10:", [d["feature"] for d in out["drift"] if max(d["psi_2025"] or 0, d["psi_2026"] or 0) > 0.10])
