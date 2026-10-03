@@ -189,6 +189,16 @@ Upper-bound test with ACTUAL weather for the report day and the next 2 days (a p
 
 Even with a perfect forecast, PR-AUC did not move. ROC-AUC rose a little. A real forecast would gain less, so forecast weather was **not built**. Scores in this test are lower than the headline numbers because the model trained on 6,000 fires, not 131,000; compare only the two rows.
 
+**Second run, whole years, weather from Earth Engine (2026-10-03).** Train on every 2024 fire (5,761), test on every 2025 fire (6,054, 10.0% big). Weather: ERA5-Land daily from Earth Engine, 5 new columns (highest temperature, strongest wind, average wind, total rain, lowest humidity; no gust). Script: `analysis/v14_6/forecast_upper_bound_ee.py`.
+
+| | ROC-AUC | PR-AUC | Top 15% catches |
+|---|---|---|---|
+| Without next-3-day weather | 0.865 | 0.434 | 61% |
+| With next-3-day actual weather | 0.876 | 0.462 | 62% |
+| Gain (95% range) | +0.011 (+0.005 to +0.017) | +0.027 (+0.008 to +0.047) | |
+
+This run shows a small gain, above zero, where the sample run showed none. Both are the best case (perfect forecast), so a real forecast should gain less, likely about +0.01 PR-AUC or less. Forecast weather is not built into the model.
+
 ## Final QA audit (2026-09-29) - 14 of 14 checks passed
 - The saved model file reproduces the reported scores exactly. Its feature names, order and types match the info file.
 - No feature is a size, end-date, year or match column.
