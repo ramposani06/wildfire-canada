@@ -243,6 +243,19 @@ Script: `analysis/v14_6/last_three_checks.py`.
 - **Reading:** in AB, human-caused fires, spring and near-road fires the ranking is good and the miss comes from the single alert line (see the accessible-fire test). **BC is a real ranking weakness**, worst near roads (ROC-AUC 0.78, lift 2.8x). That is where the available report-time data runs out.
 - **v14.7 is frozen** as the main model. The remaining uncertainty is among fires with similar report-time conditions that grow differently.
 
+## Other targets: smaller sizes and fire duration (2026-10-03)
+Script: `analysis/v14_6/alternative_targets_test.py`. Same 22 features as v14.7, same two forward splits.
+| Target | Test | Base rate | ROC-AUC | PR-AUC | Lift | Top 15% catches |
+|---|---|---|---|---|---|---|
+| Over 4 ha | 2022-24 | 22.3% | 0.859 | 0.672 | 3.0x | 49% |
+| Over 4 ha | 2025+ | 21.9% | 0.879 | 0.712 | 3.3x | 52% |
+| Over 10 ha | 2022-24 | 18.1% | 0.879 | 0.640 | 3.5x | 54% |
+| Over 10 ha | 2025+ | 18.0% | 0.894 | 0.688 | 3.8x | 58% |
+| Over 100 ha | 2022-24 | 11.6% | 0.898 | 0.539 | 4.7x | 64% |
+| Over 100 ha | 2025+ | 11.5% | 0.904 | 0.541 | 4.7x | 66% |
+- The model also ranks the smaller targets well (ROC-AUC 0.86-0.89), but its edge over a random guess is smaller (3.0-3.8x against 4.7x), because small fires are harder to tell apart. A target near 4-10 ha is closer to "got past the first attack" than 100 ha, but the data cannot say that for sure.
+- **Duration could not be tested.** `OUT_DATE` is empty for every fire from 2012 to 2024 and 29% filled in 2025 (50-78% in 2004-2011). The 2025 sample (1,774 fires) is not representative and gave weak results (ROC-AUC 0.63-0.69), which should not be trusted. A duration or "escaped initial attack" label needs agency records.
+
 ## Satellite timing audit (2026-10-01)
 Question: the satellite window includes the report day, and report dates have no clock time. Do report-day detections carry the result? The four satellite features were rebuilt from the raw detections in the database for the 2025+ test fires, with and without the report day.
 
