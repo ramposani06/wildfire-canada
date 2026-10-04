@@ -269,6 +269,15 @@ Script: `analysis/v14_6/viirs_era_test.py`. Same test fires in both setups. 2004
 - Training from 2012 never helps: it is the same or slightly worse. Keeping 2004-2011 stays.
 - The satellite rows are reference only (report-day timing risk). They still show that VIIRS alone adds about +0.05 to +0.06 PR-AUC and MODIS another +0.03.
 
+## Leave-one-out by year and province (2026-10-03)
+Script: `analysis/v14_6/leave_one_out_year_province.py`. Main model (v14.7, 22 features).
+- **By year (rolling: train on all earlier years, test one year).** Yearly PR-AUC ranges from 0.33 (2018, ROC-AUC 0.840) to 0.62 (2014); ROC-AUC is 0.84-0.94. PR-AUC follows how many big fires there were: 2023 (15.7% big) 0.59 and 2026 (13.5%) 0.59, against 2018 0.33 and 2020 (2.6% big) 0.40. Lift is 3.8-15x. Pooled 2013-2026: ROC-AUC 0.903, PR-AUC 0.496.
+- **Dropping one year from the pooled result** moves PR-AUC by at most 0.012 (2018 out: +0.012; 2023 out: -0.012; 2026 out: -0.011). No single year drives the score; the big-fire years lift it and 2018 lowers it.
+- **Dropping one year from training** (train 2004-2024 without it, test 2025+): PR-AUC changes by 0.005 or less for every year (full training 0.5408). No single training year matters.
+- **Province (2025+, provinces known):** BC ROC-AUC 0.82, PR-AUC 0.27; NT ROC-AUC 0.73 (base rate 38%, lift 1.4x); YT 0.77; SK 0.83; AB 0.86. NT, YT and SK have high PR-AUC because 25-38% of their fires are big, not because they rank well. Removing a province's fires from training changes its own PR-AUC by up to 0.07, but only where it has fewer than 15 big fires (noise).
+- **Province x year (frozen model trained to 2021):** BC is the lowest every year (PR-AUC 0.18-0.30). NT 0.52-0.73, SK 0.54-0.70, YT 0.59-0.85, AB 0.36-0.51.
+- **Data gap found:** `resolved_province` is empty for 7,542 of the 11,145 fires in 2025+ (all of 2026 and about 2,580 repaired 2025 fires). Province tables in this card that use it (missed-fire profile, subgroup ranking) therefore cover known-province fires only, mostly 2022-2024 plus part of 2025. The model itself uses `province_encoded`, which is filled for all fires. To fix when the data is rebuilt.
+
 ## Satellite timing audit (2026-10-01)
 Question: the satellite window includes the report day, and report dates have no clock time. Do report-day detections carry the result? The four satellite features were rebuilt from the raw detections in the database for the 2025+ test fires, with and without the report day.
 
