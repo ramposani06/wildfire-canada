@@ -324,6 +324,27 @@ Script: `analysis/v14_6/resampling_test.py`. v14.7 features, two forward splits.
 | SMOTE (synthetic big fires, 1:2) | 0.490 (-0.048) | 0.540 (-0.002) |
 - Every 95% range for a non-SMOTE setup crosses zero, and none beats the current setup on both splits. SMOTE is clearly worse on 2022-24 (-0.048, range -0.058 to -0.038). Resampling changes the score scale (mean raw score 0.08-0.30), not the ranking, so the Platt calibrator is still needed. Current setup kept.
 
+## What is missing for the fires the model cannot separate (2026-10-03)
+Script: `analysis/v14_6/missing_information_test.py`. Fires 2022-25 (24,194; 2,697 big) scored by the frozen model (v14.7 trained to 2021). Look at the "unsure zone": fires with the same score where some became big and some did not. Each extra variable is tested alone (AUC inside the zone) and as a group boosted on top of the model score (leave-one-year-out). Most of these variables are not known at report time; the point is to find what kind of information is missing, not to ship it.
+| Zone | Fires (big) | AUC of the model score inside the zone |
+|---|---|---|
+| Score 0.30-0.70, anywhere | 4,428 (673) | 0.605 |
+| Score 0.20-0.70, within 5 km of a road | 3,280 (339) | 0.631 |
+- **Single variables, inside the zone (AUC alone):** satellite detections are best (VIIRS max FRP 0.625-0.638, VIIRS and MODIS counts 0.62-0.63), better than the model's own score. Then road length within 5-10 km (0.39-0.44, more road = less likely big), distance to settlement (0.57-0.58), weather after the report (humidity min 0.42-0.43, rain 0.42-0.43, max temperature 0.55-0.56), and cause (human-caused 0.44-0.45).
+- **Groups added on top of the score (gain in zone AUC):**
+| Group | Anywhere | Near a road |
+|---|---|---|
+| All groups together | +0.093 (0.605 to 0.697) | +0.101 (0.631 to 0.732) |
+| Satellite (7 days to end of report day) | +0.066 | +0.066 |
+| Weather after the report (perfect forecast, 3 days) | +0.029 | +0.038 |
+| Cause and time of year | +0.027 | +0.037 |
+| Extra access and geography | -0.015 | -0.013 |
+| Fire danger indices (FWI system) | -0.017 | -0.023 |
+| Nearby fire activity | -0.022 | -0.029 |
+| Lightning in the days before | -0.022 | -0.047 |
+- **Reading:** what is missing is mostly (1) what the fire is doing in its first hours (satellite heat), (2) what the weather does after the report, and (3) cause and season. Nearby fires, lightning, danger indices and extra geography add nothing. Satellite detections include the report day, so the timing problem applies; weather after the report is only partly knowable from a forecast; the cause is not always known at report time (the whole-data test of cause found no gain).
+- An earlier version of this test used a weaker baseline (0.536) and overstated every gain by about 0.07; it was replaced.
+
 ## Satellite timing audit (2026-10-01)
 Question: the satellite window includes the report day, and report dates have no clock time. Do report-day detections carry the result? The four satellite features were rebuilt from the raw detections in the database for the 2025+ test fires, with and without the report day.
 
