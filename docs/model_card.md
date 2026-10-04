@@ -377,6 +377,19 @@ Reading: use step 1 as the alert at report time, then step 2 as a re-score to ad
 
 Result: the gain holds on both splits and the ranges exclude zero. Step 2 adds about +0.07 PR-AUC and the OR rule adds about 8 points of recall for a 1-3 point precision cost. Still only valid after the report day's satellite passes.
 
+**Next-day satellite test.** Satellite columns rebuilt from the detection database (MODIS 2012-26, VIIRS 2012-26) in two ways with the same code: passes to the end of the report day, or to the end of the next day.
+
+| PR-AUC | Split A (test 2022-24) | Split B (test 2025+) |
+|---|---|---|
+| Step 1 (report time) | 0.540 | 0.548 |
+| Same-day satellite | 0.610 | 0.585 |
+| Next-day satellite | 0.668 | 0.616 |
+| Next-day over same-day | +0.057 (+0.045 to +0.069) | +0.031 (+0.015 to +0.045) |
+
+- Ranking gain holds on both splits, ranges above zero.
+- Caveats: (1) rebuilt columns only correlate 0.64-0.78 with the dataset's own columns, and the database starts in 2012, so the rebuilt same-day gain on 2025+ (+0.036) is smaller than the original step 2 (+0.074); treat this as a rough comparison, not exact. (2) Next-day detections are measuring the fire after it has grown, so part of the gain is the model seeing the outcome, not predicting it. (3) On split B the alert line from 2022-24 did not transfer (next-day flagged 10.4%, recall 56.6%), so alert rates should not be read from this table.
+- Decision: not adopted. Step 2 (same-day re-score) stays the later-stage model. Next-day is reported as a ceiling, not a product.
+
 ## Satellite timing audit (2026-10-01)
 Question: the satellite window includes the report day, and report dates have no clock time. Do report-day detections carry the result? The four satellite features were rebuilt from the raw detections in the database for the 2025+ test fires, with and without the report day.
 
