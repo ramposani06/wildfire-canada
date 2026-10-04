@@ -14,13 +14,15 @@ def find(name):
 i1 = json.load(open(find("final_model_v14.7_info.json"))); i2 = json.load(open(find("final_model_v14.8_stage2_info.json")))
 f1, f2 = i1["features"], i2["features"]; t1, t2 = i1["threshold_recall"], i2["threshold_recall"]; c1, c2 = i1["calibrator"], i2["calibrator"]
 df = pd.read_csv(find(CSV), low_memory=False)
-df = df[df[LAT].between(41, 84) & df[LON].between(-142, -52)].dropna(subset=[TARGET]).reset_index(drop=True)
+df = df[df[LAT].between(41, 84) & df[LON].between(-142, -52)].dropna(subset=[TARGET]); df["_row"] = df.index; df = df.reset_index(drop=True)
+fp = [os.path.join(r, "province_filled_v4.csv") for r, _, fs in os.walk(FOLDER) if "province_filled_v4.csv" in fs]
+if fp: df = df.merge(pd.read_csv(fp[0]).rename(columns={"row": "_row"}), on="_row", how="left")
 y = df[TARGET].astype(int).values; yr = df["year"].values; tr = yr <= 2024
 m1 = LGBMClassifier(**P).fit(df.loc[tr, f1], y[tr]); m2 = LGBMClassifier(**P).fit(df.loc[tr, f2], y[tr])
 d = df[yr == 2025].copy(); d["s1"] = m1.predict_proba(d[f1])[:, 1]; d["s2"] = m2.predict_proba(d[f2])[:, 1]
 chance = lambda s, c: 1 / (1 + np.exp(-(c["coef"] * np.log(np.clip(s, 1e-4, 1 - 1e-4) / (1 - np.clip(s, 1e-4, 1 - 1e-4))) + c["intercept"])))
 d["chance1"] = chance(d["s1"], c1); d["a1"] = d["s1"] >= t1; d["a2"] = d["s2"] >= t2
-size = next((c for c in d.columns if c.upper() == "SIZE_HA"), None); prov = next((c for c in ("resolved_province", "PROVINCE", "SRC_AGENCY") if c in d.columns), None)
+size = next((c for c in d.columns if c.upper() == "SIZE_HA"), None); prov = next((c for c in ("province_filled", "resolved_province", "PROVINCE", "SRC_AGENCY") if c in d.columns), None)
 d["big"] = d[TARGET].astype(int)
 groups = [("CAUGHT BIG FIRE (step 1 alerted, it was big)", (d.big == 1) & d.a1), ("MISSED BIG FIRE (step 1 quiet, it was big)", (d.big == 1) & ~d.a1),
           ("FALSE ALARM (step 1 alerted, it stayed small)", (d.big == 0) & d.a1), ("QUIET SMALL FIRE (no alert, stayed small)", (d.big == 0) & ~d.a1)]

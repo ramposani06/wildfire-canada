@@ -417,6 +417,26 @@ Script `analysis/v14_6/twin_difference_test.py`. For each of the 1,131 missed bi
 
 Reading: with the columns we have, the only thing clearly missing in missed fires is what the fire is doing on the day, which is seen by satellites after the report.
 
+## How a fire is scored today: real examples (2025 fires, models trained to 2024)
+
+Script: `analysis/v14_6/scoring_examples.py`. Two random 2025 fires per group, so these show how scoring works; they are not a test.
+Flow: (1) at report time collect location, 7 days of weather before the report, land (NDVI, slope, elevation) and roads/people nearby; (2) step 1 (v14.7) gives a score, alert at 0.695 or higher, plus a calibrated chance; (3) after the afternoon satellite passes, step 2 (v14.8 stage 2, adds 4 satellite columns) re-scores, alert at 0.770 or higher; (4) a fire flagged by step 2 and not step 1 is added as a late alert.
+
+| Group | Example | Step 1 | Satellite by end of report day | Step 2 | Outcome |
+|---|---|---|---|---|---|
+| Caught big | 2025-08-01, 53.35N -90.29W, road 24.3 km, 0 people | 0.870 (49%), alert | VIIRS 55 hits, FRP 96 | 0.951, alert | big, 236 ha |
+| Caught big | 2025-06-21, YT, road 25.8 km, 0 people | 0.907 (57%), alert | none | 0.864, alert | big, 1,500 ha |
+| Missed big | 2025-05-29, 58.54N -118.86W, road 0.1 km, 1,214 people within 25 km | 0.221 (5%), none | VIIRS 1 hit, FRP 4 | 0.110, none | big, 52,359 ha |
+| Missed big | 2025-05-26, SK, road 0.0 km, 306 people | 0.188 (4%), none | none | 0.117, none | big, 189,064 ha |
+| False alarm | 2025-06-12, road 18.4 km, 2 people | 0.820 (40%), alert | none | 0.794, alert | stayed small |
+| False alarm | 2025-05-14, road 12.6 km, 2 people | 0.861 (47%), alert | none | 0.892, alert | stayed small |
+| Quiet small | 2025-06-28, road 0.9 km, 42 people | 0.626 (21%), none | none | 0.596, none | stayed small |
+| Quiet small | 2025-06-03, road 8.8 km, 16 people | 0.492 (14%), none | none | 0.499, none | stayed small, 3 ha |
+
+- The model mostly learned "remote means big": both caught and both false-alarm fires are far from roads with almost no people.
+- Both missed fires were near roads and people in late May, were reported early, and had little or no satellite signal by the end of the report day, so step 2 also missed them. About 64% of missed big fires have no satellite hit by then; step 2 helps with only part of the misses.
+- Final size is recorded as 0 ha for some small fires, which is probably a missing value.
+
 ## Satellite timing audit (2026-10-01)
 Question: the satellite window includes the report day, and report dates have no clock time. Do report-day detections carry the result? The four satellite features were rebuilt from the raw detections in the database for the 2025+ test fires, with and without the report day.
 
