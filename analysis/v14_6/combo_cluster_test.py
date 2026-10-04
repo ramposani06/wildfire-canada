@@ -52,7 +52,7 @@ print(r.round(3).sort_values("miss_2022-24", ascending=False).to_string())
 
 print("\n=== B) Big fires the model misses (score under the 65%-recall threshold), 2022-24 vs caught ===")
 sv = raw[va]; thr = float(np.sort(sv[y[va] == 1])[int(0.35 * (y[va] == 1).sum())])
-sc = StandardScaler().fit(df.loc[tr, feats]); Z = pd.DataFrame(sc.transform(df[feats]), columns=feats)
+sc = StandardScaler().fit(df.loc[tr, feats]); Z = pd.DataFrame(sc.transform(df[feats]), columns=feats).fillna(0.0)   # empty values -> training average
 big = y == 1; miss = big & (raw < thr); caught = big & (raw >= thr)
 for nm, mk in (("2022-24", va), ("2025+", te)):
     print(f"{nm}: big fires {int((big & mk).sum()):,} | missed {int((miss & mk).sum()):,} ({(miss & mk).sum()/(big & mk).sum():.0%}) | threshold {thr:.3f}")
@@ -70,8 +70,8 @@ def run(trm, tem, name):
     s0 = LGBMClassifier(**P).fit(df.loc[trm, feats], y[trm]).predict_proba(df.loc[tem, feats])[:, 1]
     b = (roc_auc_score(y[tem], s0), average_precision_score(y[tem], s0))
     for k in (8, 20, 50):
-        sc2 = StandardScaler().fit(df.loc[trm, WEAK]); kmk = MiniBatchKMeans(n_clusters=k, n_init=5, random_state=0, batch_size=4096).fit(sc2.transform(df.loc[trm, WEAK]))
-        Zall = sc2.transform(df[WEAK]); cl = kmk.predict(Zall); dist = np.min(kmk.transform(Zall), axis=1)
+        sc2 = StandardScaler().fit(df.loc[trm, WEAK]); kmk = MiniBatchKMeans(n_clusters=k, n_init=5, random_state=0, batch_size=4096).fit(np.nan_to_num(sc2.transform(df.loc[trm, WEAK])))
+        Zall = np.nan_to_num(sc2.transform(df[WEAK])); cl = kmk.predict(Zall); dist = np.min(kmk.transform(Zall), axis=1)
         X = df[feats].copy(); X["wk_cluster"] = cl; X["wk_dist"] = dist
         s1 = LGBMClassifier(**P).fit(X.loc[trm], y[trm]).predict_proba(X.loc[tem])[:, 1]
         a = (roc_auc_score(y[tem], s1), average_precision_score(y[tem], s1))
