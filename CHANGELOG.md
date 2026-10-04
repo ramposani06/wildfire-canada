@@ -65,6 +65,15 @@ Scripts for this work are in `analysis/` and `audits/`.
 
 Model files (`final_model_v14.6_clean*.pkl`, `final_model_v14.6_calibrator.json`) and the training data stay on Google Drive.
 
+## v14.7 and v14.8 stage 2 — location, two-step scoring, closing the feature search (Oct 2026)
+
+- **v14.7 (main model, `analysis/v14_6/build_v14_7.py`):** 22 features = 20 report-time features + latitude and longitude. The only change that passed on both forward splits (+0.01 PR-AUC). 2025+ forward test: ROC-AUC 0.904, PR-AUC 0.541, alert line 0.695 (65% recall on 2022-24) catches 70% of big fires with 47% precision.
+- **v14.8 stage 2 (`analysis/v14_6/two_stage_model.py`, `two_stage_validate.py`):** a re-score after the day's satellite passes (v14.7 inputs plus 4 satellite columns, alert line 0.770). PR-AUC +0.07 on both splits (ranges above zero). OR rule with step 1 adds about 8 points of recall. Valid only after the satellite passes; it never replaces step 1.
+- **Failed fires (`failed_fires_export.py`, `twin_difference_test.py`):** 72% of missed big fires have almost no big look-alikes; the only clear gap is report-day satellite heat (+1.6 to +1.9 standard deviations beyond control).
+- **Tested and not adopted:** aspect and wind, interactions and clusters, imbalance techniques (class weights, focal loss, ranking objectives, EasyEnsemble, bagging, RUSBoost, SMOTE family, Tomek, isolation forest), training from 2012 only, long-memory dryness and snow (`dryness_memory_test.py`), next-day satellite (a ceiling, partly measures the outcome), failed-fires feature importance (circular).
+- **Data:** `resolved_province` filled for 62,838 fires (`province_filled_v4.csv`).
+- Models (`final_model_v14.7_*`, `final_model_v14.8_stage2_*`) are on Google Drive; the repo `.pkl` files are still v3/v14.6.
+
 ## Also tested and rejected (see model card for full list)
 
 - FBP fuel type

@@ -4,6 +4,12 @@ Predicting whether a newly reported Canadian wildfire will grow into a **big fir
 
 **Main model (v14.7): 22 features, no satellite, all known before the report day** (20 weather/land/people features plus latitude and longitude). 2025+ forward test: ROC-AUC 0.904 (0.897-0.912), PR-AUC 0.541 (0.513-0.571); alert threshold 0.695 catches 70% of big fires with 47% precision. The 24-feature satellite model below is an optional upgrade for when same-day detections are known to be available before scoring.
 
+**Two-step scoring:** step 1 is the v14.7 report-time score. Step 2 re-scores after the day's satellite passes (adds 4 satellite columns): PR-AUC about 0.62 against 0.55 on the same fires, tested on two splits with ranges above zero. Using either alert (OR rule) catches 77% of big fires instead of 69% for about 2 more points of fires flagged. Step 2 is only valid once the satellite passes are in.
+
+**What the model cannot do (honest limits):** it mostly learned remoteness (road distance, people nearby, location). About a third of big fires are missed, mostly near roads and people in BC and Alberta in spring, and 72% of them look like ordinary small fires at report time. The one clear missing signal is how hot the fire is on the report day, which satellites see only later. Weather, dryness, snow, wind, aspect, lightning and cause were all tested and added nothing at report time. Report-time ceiling is about 0.54 PR-AUC. Not ready to run a fire service on its own; it is a ranking aid.
+
+**Path to production:** freeze v14.7 (tag `v14.7-frozen`); score 2027 fires once as the first untouched test; run the live scorer on v14.7 plus the step 2 re-score; monitor alert rate, calibration and drift monthly.
+
 ## Results (full 24-feature model: v14.6, forward-tested on 2025-2026)
 
 Trained on 2004-2021 fires, features and threshold chosen on 2022-2024, then scored once on 2025-2026. These years were looked at by earlier model versions too, so this is a **forward test, not a perfectly untouched one**. The first truly untouched test will be 2027.
