@@ -198,6 +198,13 @@ Scripts: `analysis/v14_6/feature_importance_all.py`, `analysis/v14_6/feature_imp
 - **Caveat:** FWI, DC, BUI, ISI and FFMC are 63% empty, and road length, settlement and water distance and nearby-fire counts are 44% empty (they do not exist for all years). Their negative results on 2025+ may partly come from that missing data rather than from the columns being useless. Earlier tests on complete subsets also found no gain.
 - Conclusion: v14.7 stays at 22 features.
 
+## Combinations of weak features and clustering (2026-10-03)
+Script: `analysis/v14_6/combo_cluster_test.py`. Model v14.7 trained to 2021; patterns searched in 2022-24 and then checked on 2025+. "Weak" = the 13 weather columns, elevation and slope.
+- **Rules:** a depth-3 tree on what the model gets wrong gave 7 groups. None held up: the model's error in the best group fell from +3.9 points (2022-24) to +0.9 (2025+), in the next from +3.1 to +0.4, and one group flipped sign (-4.2 to +3.0). Noise.
+- **Missed big fires:** 35% of big fires in 2022-24 and 31% in 2025+ score under the alert threshold. Compared with caught big fires they are further north, in provinces with lower codes, nearer roads and on steeper, higher ground. Clustering them gives four groups (near-road, cool and cloudy north, very dry north, steep high ground). The group sizes change between periods (for example 28% to 18% and 16% to 26%), so none is a stable pocket.
+- **Cluster as a feature** (k-means on the weak features, k = 8, 20, 50, plus distance to the cluster centre): PR-AUC gain between -0.003 and +0.004 on both splits, every range crosses zero. Not added.
+- Conclusion: no combination of the weak features adds reliable signal. The missed big fires look like unlucky growth rather than a hidden pattern.
+
 ## Satellite timing audit (2026-10-01)
 Question: the satellite window includes the report day, and report dates have no clock time. Do report-day detections carry the result? The four satellite features were rebuilt from the raw detections in the database for the 2025+ test fires, with and without the report day.
 
