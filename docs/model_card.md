@@ -205,6 +205,17 @@ Script: `analysis/v14_6/combo_cluster_test.py`. Model v14.7 trained to 2021; pat
 - **Cluster as a feature** (k-means on the weak features, k = 8, 20, 50, plus distance to the cluster centre): PR-AUC gain between -0.003 and +0.004 on both splits, every range crosses zero. Not added.
 - Conclusion: no combination of the weak features adds reliable signal. The missed big fires look like unlucky growth rather than a hidden pattern.
 
+## Missed big fires, profile (2026-10-03)
+Script: `analysis/v14_6/missed_fires_profile.py`. Model v14.7 trained to 2021, threshold 0.695 (65% recall on 2022-24), scored on 2022-26 fires (29,155; 3,369 big). Caught 2,238, **missed 1,131 (34%)**, false alarms 2,362. Final size is used only to describe fires after the fact.
+- **Close calls:** 33% of misses scored 0.55-0.70 (just under the line); 19% scored under 0.20.
+- **Size:** catch rate is 53% for 100-200 ha fires, 59% for 200-500, and about 70% above 500 ha.
+- **Where:** BC (77% of its big fires missed) and AB (67%) make half of all misses. NT 5%, YT 11%, SK 18%, QC 21% missed.
+- **Road distance:** missed 87% under 1 km, 75% at 1-5 km, 47% at 5-20 km, 9% over 20 km.
+- **Cause:** human-caused big fires missed 80%, natural 29%.
+- **Month:** April 81% missed, May 62%, June 21%, July 32%, Aug 39%.
+- **Typical values:** missed big fires have a median road distance of 5 km and 243 people within 25 km. Caught big fires have 40 km and 0 people. Weather is almost the same for all four groups.
+- **Reading:** the model mostly learned that far from roads and people means big. Big fires near roads and people (mostly BC and AB, human-caused, spring) look like small fires to it, and weather alone does not separate them. The weak spot is exactly where a big fire matters most for people and property.
+
 ## Satellite timing audit (2026-10-01)
 Question: the satellite window includes the report day, and report dates have no clock time. Do report-day detections carry the result? The four satellite features were rebuilt from the raw detections in the database for the 2025+ test fires, with and without the report day.
 
