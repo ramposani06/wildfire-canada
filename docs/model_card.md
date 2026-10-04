@@ -276,7 +276,27 @@ Script: `analysis/v14_6/leave_one_out_year_province.py`. Main model (v14.7, 22 f
 - **Dropping one year from training** (train 2004-2024 without it, test 2025+): PR-AUC changes by 0.005 or less for every year (full training 0.5408). No single training year matters.
 - **Province (2025+, provinces known):** BC ROC-AUC 0.82, PR-AUC 0.27; NT ROC-AUC 0.73 (base rate 38%, lift 1.4x); YT 0.77; SK 0.83; AB 0.86. NT, YT and SK have high PR-AUC because 25-38% of their fires are big, not because they rank well. Removing a province's fires from training changes its own PR-AUC by up to 0.07, but only where it has fewer than 15 big fires (noise).
 - **Province x year (frozen model trained to 2021):** BC is the lowest every year (PR-AUC 0.18-0.30). NT 0.52-0.73, SK 0.54-0.70, YT 0.59-0.85, AB 0.36-0.51.
-- **Data gap found:** `resolved_province` is empty for 7,542 of the 11,145 fires in 2025+ (all of 2026 and about 2,580 repaired 2025 fires). Province tables in this card that use it (missed-fire profile, subgroup ranking) therefore cover known-province fires only, mostly 2022-2024 plus part of 2025. The model itself uses `province_encoded`, which is filled for all fires. To fix when the data is rebuilt.
+- **Data gap found:** `resolved_province` is empty for 7,542 of the 11,145 fires in 2025+ (all of 2026 and about 2,580 repaired 2025 fires). Province tables in this card that use it (missed-fire profile, subgroup ranking) therefore cover known-province fires only, mostly 2022-2024 plus part of 2025. The model itself uses `province_encoded`, which is filled for all fires. Fixed below (province filled and tables redone).
+
+## Province names filled, province tables redone (2026-10-03)
+Script: `analysis/v14_6/fill_province_and_redo.py`. `resolved_province` was empty for 62,838 of 142,838 fires: all of 2004-2011, about 2,580 repaired 2025 fires and all of 2026. The model was not affected (it uses `province_encoded`, filled for every fire).
+- **Fill:** `province_encoded` maps to one province in 12 of its 13 codes (code 0 and code 8 both mean AB; one code mixes provinces and was filled by location). Nearest-fire fill by latitude and longitude is 99.3% accurate on known fires (5-fold). Where both methods can be used on an empty fire, they agree 99.6% of the time. The filled column is saved to Drive as `province_filled_v4.csv` (row number + province) for the next data rebuild.
+- **By province, frozen model (train to 2021), fires 2022-26, alert line 0.695:**
+| Province | Fires | Big | Base rate | ROC-AUC | PR-AUC | Lift | Catches | Precision | Fires alerted |
+|---|---|---|---|---|---|---|---|---|---|
+| BC | 8,588 | 611 | 7.1% | 0.797 | 0.232 | 3.3x | 21% | 28% | 5% |
+| NT | 1,225 | 602 | 49.1% | 0.745 | 0.683 | 1.4x | 96% | 58% | 81% |
+| SK | 2,379 | 437 | 18.4% | 0.877 | 0.595 | 3.2x | 81% | 46% | 32% |
+| QC | 2,879 | 432 | 15.0% | 0.927 | 0.603 | 4.0x | 82% | 54% | 23% |
+| MB | 1,599 | 419 | 26.2% | 0.805 | 0.567 | 2.2x | 73% | 49% | 39% |
+| AB | 5,945 | 296 | 5.0% | 0.895 | 0.340 | 6.8x | 29% | 45% | 3% |
+| YT | 631 | 246 | 39.0% | 0.824 | 0.709 | 1.8x | 89% | 59% | 59% |
+| ON | 2,935 | 244 | 8.3% | 0.888 | 0.408 | 4.9x | 65% | 36% | 15% |
+| NL | 693 | 62 | 8.9% | 0.912 | 0.654 | 7.3x | 74% | 61% | 11% |
+- **Reading:** one national line behaves very differently by province. It alerts on 81% of NT fires and 59% of YT fires (half or more of them are big anyway) but on only 5% of BC and 3% of AB fires, so it catches 21% of BC and 29% of AB big fires. Ranking is best in QC (ROC-AUC 0.93), NL, AB, ON and SK; weakest in NT (0.70-0.75, lift 1.3-1.4x), MB (0.77-0.81) and BC (0.80). Per-province alert lines would fit better than one national line (see the accessible-fire test).
+- **BC by year (PR-AUC, big fires):** 2022 0.18 (77), 2023 0.30 (252), 2024 0.24 (129), 2025 0.24 (82), 2026 0.15 (71). BC is the lowest every year. NT 0.52-0.74, SK 0.53-0.70, MB 0.30-0.65, ON 0.37-0.51, AB 0.20-0.51.
+- **Final model (train to 2024) on 2025+:** BC ROC-AUC 0.814, PR-AUC 0.214; AB 0.848 / 0.191 (lift 5.9x); QC 0.941 / 0.619; SK 0.857 / 0.580; NT 0.703 / 0.660 (lift 1.3x); MB 0.766 / 0.621.
+- The earlier missed-fire and subgroup tables used known-province fires only. With every province filled the picture is the same (BC and AB are where most big fires are missed).
 
 ## Satellite timing audit (2026-10-01)
 Question: the satellite window includes the report day, and report dates have no clock time. Do report-day detections carry the result? The four satellite features were rebuilt from the raw detections in the database for the 2025+ test fires, with and without the report day.
