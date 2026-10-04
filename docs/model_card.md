@@ -453,6 +453,12 @@ Script `analysis/v14_6/dryness_memory_test.py`. 12 ERA5-Land columns for all 142
 - Spring (April-May) PR-AUC did not improve consistently (2022-24: 0.376 vs 0.378; 2025+: 0.327 vs 0.326).
 - Decision: not adopted. Long-memory dryness and snow do not explain the missed big fires. The columns are cached on Drive as `dryness_raw.csv`.
 
+**Twin test re-run with dryness and snow columns (98% of fires have values).** Columns are ranked by the difference beyond the control.
+- Satellite on the report day is still far ahead: MODIS max FRP +1.85, VIIRS max FRP +1.57, MODIS count +0.60, VIIRS count +0.43 standard deviations beyond control.
+- Next, all small: days snow-covered in the last 90 days +0.19 (missed fires melted out more recently than their twins), distance to settlement +0.16, road km within 5 km -0.23 and within 10 km -0.19 (fewer roads around missed fires than their twins; column 44% empty), day of year -0.15.
+- Soil moisture, rain over 14-90 days, 30-day temperature and wind/aspect show no difference beyond the control.
+- Reading: nothing except satellite heat is above about 0.2 standard deviations. Snow melt is the only dryness-type lead, and in the earlier gain test the snow columns added no PR-AUC (+0.003 and +0.000), so it is not worth adding.
+
 ## Satellite timing audit (2026-10-01)
 Question: the satellite window includes the report day, and report dates have no clock time. Do report-day detections carry the result? The four satellite features were rebuilt from the raw detections in the database for the 2025+ test fires, with and without the report day.
 
