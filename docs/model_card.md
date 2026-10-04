@@ -222,7 +222,7 @@ Script: `analysis/v14_6/accessible_segment_test.py`. Segment A = within 5 km of 
 - **A specialist model trained only on segment fires is not better:** PR-AUC gain -0.032 (-0.051 to -0.011) and -0.012 (-0.030 to +0.006) in segment A. Counting segment fires 3x also gave nothing (-0.011 and -0.005; segment B +0.006 and +0.008, ranges cross zero).
 - **The problem is the alert line, not the ranking.** With one national line (0.695), the model catches 15% of big fires inside segment A and 4% inside segment B, although it ranks them well.
 - **A separate line inside the segment** (65% recall on 2022-24 inside it; 0.51 for A, 0.48 for B), checked on 2025+: inside segment A it catches 43% instead of 15% (precision 27% instead of 42%); across all fires it catches 69% instead of 62% of big fires and flags 17% of fires instead of 14%. Segment B: inside it 40% instead of 4%; overall 67% instead of 62%; flags 16% instead of 14%. Tested on one forward period only.
-- **Suggested use:** a two-tier alert (stricter line for fires near roads or people, where big fires are rare but cost most). This is an operating-rule choice, not a model change.
+- **Correction (see per-province test below):** this comparison did not give the national line the same alert budget, and its lines were fitted on scores the model had already trained on. The fair test found that separate lines do not catch more big fires than one national line flagging the same share of fires. A separate line near roads moves alerts to where coverage is thin; it does not add catches overall.
 
 ## Last three checks: interactions, size bands, subgroups (2026-10-03)
 Script: `analysis/v14_6/last_three_checks.py`.
@@ -297,6 +297,20 @@ Script: `analysis/v14_6/fill_province_and_redo.py`. `resolved_province` was empt
 - **BC by year (PR-AUC, big fires):** 2022 0.18 (77), 2023 0.30 (252), 2024 0.24 (129), 2025 0.24 (82), 2026 0.15 (71). BC is the lowest every year. NT 0.52-0.74, SK 0.53-0.70, MB 0.30-0.65, ON 0.37-0.51, AB 0.20-0.51.
 - **Final model (train to 2024) on 2025+:** BC ROC-AUC 0.814, PR-AUC 0.214; AB 0.848 / 0.191 (lift 5.9x); QC 0.941 / 0.619; SK 0.857 / 0.580; NT 0.703 / 0.660 (lift 1.3x); MB 0.766 / 0.621.
 - The earlier missed-fire and subgroup tables used known-province fires only. With every province filled the picture is the same (BC and AB are where most big fires are missed).
+
+## One national alert line vs a line per province (2026-10-03)
+Script: `analysis/v14_6/province_threshold_test.py`. One frozen model (v14.7 trained to 2021). Each group's line is fitted on 2022-24 scores (65% recall inside the group; groups with under 40 big fires use the national line) and applied to 2025+ (11,145 fires, 1,283 big).
+| Rule | Fires flagged | Big fires caught | Precision |
+|---|---|---|---|
+| One national line (0.695) | 16.3% | 68.7% | 48.6% |
+| Line per province (8 groups) | 17.8% | 64.0% | 41.5% |
+| National line moved to flag 17.8% (0.66) | 17.8% | **71.3%** | 46.2% |
+| Line per province + near-road tier (11 groups) | 19.5% | 62.4% | 36.8% |
+| National line moved to flag 19.5% (0.61) | 19.5% | **75.2%** | 44.3% |
+- **Per-province lines are not more efficient.** For the same number of alerts, one national line catches more big fires (71.3% vs 64.0%; 75.2% vs 62.4%). Asking for equal recall everywhere spends alerts where precision is low.
+- **What they do change is who is covered:** big fires caught in BC rise from 15% to 54% and in AB from 16% to 48%, while NT falls from 96% to 65% and QC from 90% to 88%. Alerted share in BC goes from 3% to 17% (precision 18%).
+- **The per-province lines also do not hold their target:** 2025+ recall by province is 48-88% against a 65% target (AB 48%, BC 54%, QC 88%).
+- **Reading:** this is a policy choice (equal coverage across provinces versus the most big fires caught per alert), not a model improvement. The national line alone is the better default.
 
 ## Satellite timing audit (2026-10-01)
 Question: the satellite window includes the report day, and report dates have no clock time. Do report-day detections carry the result? The four satellite features were rebuilt from the raw detections in the database for the 2025+ test fires, with and without the report day.
