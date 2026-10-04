@@ -345,6 +345,24 @@ Script: `analysis/v14_6/missing_information_test.py`. Fires 2022-25 (24,194; 2,6
 - **Reading:** what is missing is mostly (1) what the fire is doing in its first hours (satellite heat), (2) what the weather does after the report, and (3) cause and season. Nearby fires, lightning, danger indices and extra geography add nothing. Satellite detections include the report day, so the timing problem applies; weather after the report is only partly knowable from a forecast; the cause is not always known at report time (the whole-data test of cause found no gain).
 - An earlier version of this test used a weaker baseline (0.536) and overstated every gain by about 0.07; it was replaced.
 
+## Two-step scoring (report time, then re-score with satellite)
+
+Step 1 = v14.7 at report time. Step 2 = same 22 features + 4 satellite columns, run after the day's satellite passes. Both frozen (trained to 2021), alert lines fitted on 2022-24 (step 1 = 0.695, step 2 = 0.770), scored once on 2025+ (11,145 fires, 1,283 big).
+
+| Rule | Fires flagged | Big fires caught | Precision | False alarms |
+|---|---|---|---|---|
+| Step 1 only (report time) | 16.3% | 68.7% | 48.6% | 931 |
+| Step 2 only (after satellite) | 15.7% | 71.4% | 52.3% | 837 |
+| Step 1 OR step 2 | 18.4% | 76.7% | 47.9% | 1,069 |
+| Step 1 AND step 2 | 13.6% | 63.4% | 53.8% | 699 |
+
+- Ranking: step 1 ROC 0.904 / PR 0.548; step 2 ROC 0.924 / PR 0.622 (+0.07 PR).
+- Step 1 missed 401 big fires; step 2 catches 102 of them (25%).
+- Step 2 drops 300 step-1 alerts: 232 false alarms, 68 real big fires.
+- Step 2 top-k capture: 5% 32%, 10% 55%, 15% 70%, 20% 81%, 25% 87%.
+
+Reading: use step 1 as the alert at report time, then step 2 as a re-score to add late catches (OR rule: +8 points of recall for +2 points of fires flagged). Step 2 is only valid after the report day's satellite passes; it is not a report-time score. Single split, not repeated on 2022-24 or bootstrapped yet. Models saved on Drive: `final_model_v14.8_stage2_allyears.pkl`.
+
 ## Satellite timing audit (2026-10-01)
 Question: the satellite window includes the report day, and report dates have no clock time. Do report-day detections carry the result? The four satellite features were rebuilt from the raw detections in the database for the 2025+ test fires, with and without the report day.
 
