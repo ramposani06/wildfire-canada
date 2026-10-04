@@ -437,6 +437,22 @@ Flow: (1) at report time collect location, 7 days of weather before the report, 
 - Both missed fires were near roads and people in late May, were reported early, and had little or no satellite signal by the end of the report day, so step 2 also missed them. About 64% of missed big fires have no satellite hit by then; step 2 helps with only part of the misses.
 - Final size is recorded as 0 ha for some small fires, which is probably a missing value.
 
+## Long-memory dryness and snow test (2026-10-03) - not adopted
+
+Script `analysis/v14_6/dryness_memory_test.py`. 12 ERA5-Land columns for all 142,838 fires, using only days before the report day: soil moisture (3 layers), rain over 14/30/60/90 days, days since rain over 2 mm, rain vs 30-day evaporation demand, days snow-covered (30 and 90), 30-day mean temperature and evaporation. Added to the 22 inputs on two forward splits.
+
+| PR-AUC gain (95% range) | train ≤2021 -> 2022-24 | train ≤2024 -> 2025+ |
+|---|---|---|
+| Soil moisture | -0.002 (-0.008 to +0.003) | +0.001 (-0.005 to +0.008) |
+| Rain memory | -0.000 (-0.007 to +0.005) | +0.004 (-0.003 to +0.010) |
+| Snow | +0.003 (-0.002 to +0.008) | +0.000 (-0.007 to +0.006) |
+| 30-day heat and evaporation | -0.000 (-0.006 to +0.005) | +0.001 (-0.005 to +0.008) |
+| All new columns | +0.006 (-0.002 to +0.013) | +0.001 (-0.008 to +0.010) |
+
+- Every PR-AUC range crosses zero on both splits. Rain memory raised ROC-AUC by +0.003 (+0.001 to +0.004) on 2025+ only, with no matching gain on 2022-24.
+- Spring (April-May) PR-AUC did not improve consistently (2022-24: 0.376 vs 0.378; 2025+: 0.327 vs 0.326).
+- Decision: not adopted. Long-memory dryness and snow do not explain the missed big fires. The columns are cached on Drive as `dryness_raw.csv`.
+
 ## Satellite timing audit (2026-10-01)
 Question: the satellite window includes the report day, and report dates have no clock time. Do report-day detections carry the result? The four satellite features were rebuilt from the raw detections in the database for the 2025+ test fires, with and without the report day.
 
