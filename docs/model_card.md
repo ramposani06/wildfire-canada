@@ -363,6 +363,20 @@ Step 1 = v14.7 at report time. Step 2 = same 22 features + 4 satellite columns, 
 
 Reading: use step 1 as the alert at report time, then step 2 as a re-score to add late catches (OR rule: +8 points of recall for +2 points of fires flagged). Step 2 is only valid after the report day's satellite passes; it is not a report-time score. Single split, not repeated on 2022-24 or bootstrapped yet. Models saved on Drive: `final_model_v14.8_stage2_allyears.pkl`.
 
+**Two-step check on two splits (bootstrap ranges).** Split A: train ≤2018, alert lines 2019-21, test 2022-24 (18,010 fires, 2,086 big). Split B: train ≤2021, lines 2022-24, test 2025+.
+
+| | Split A | Split B |
+|---|---|---|
+| PR-AUC step 1 / step 2 | 0.540 / 0.610 | 0.548 / 0.622 |
+| PR gain of step 2 | +0.070 (+0.057 to +0.082) | +0.074 (+0.056 to +0.093) |
+| Recall step 1 / step 2 / OR | 69% / 76% / 78% | 69% / 71% / 77% |
+| OR minus step 1: recall | +8.6 pts (+7.4 to +9.9) | +7.9 pts (+6.5 to +9.4) |
+| OR: extra fires flagged | +3.1 pts | +2.2 pts |
+| Precision step 1 / OR | 46% / 44% | 49% / 48% |
+| Step 1 misses caught by step 2 | 28% (180 of 643) | 25% (102 of 401) |
+
+Result: the gain holds on both splits and the ranges exclude zero. Step 2 adds about +0.07 PR-AUC and the OR rule adds about 8 points of recall for a 1-3 point precision cost. Still only valid after the report day's satellite passes.
+
 ## Satellite timing audit (2026-10-01)
 Question: the satellite window includes the report day, and report dates have no clock time. Do report-day detections carry the result? The four satellite features were rebuilt from the raw detections in the database for the 2025+ test fires, with and without the report day.
 
