@@ -390,6 +390,19 @@ Result: the gain holds on both splits and the ranges exclude zero. Step 2 adds a
 - Caveats: (1) rebuilt columns only correlate 0.64-0.78 with the dataset's own columns, and the database starts in 2012, so the rebuilt same-day gain on 2025+ (+0.036) is smaller than the original step 2 (+0.074); treat this as a rough comparison, not exact. (2) Next-day detections are measuring the fire after it has grown, so part of the gain is the model seeing the outcome, not predicting it. (3) On split B the alert line from 2022-24 did not transfer (next-day flagged 10.4%, recall 56.6%), so alert rates should not be read from this table.
 - Decision: not adopted. Step 2 (same-day re-score) stays the later-stage model. Next-day is reported as a ceiling, not a product.
 
+## Failed fires: what the misses share (2022-26, model v14.7 trained to 2021, alert line 0.695)
+
+Fires 2022-26: 29,155. Caught big 2,238; MISSED big 1,131; false alarms 2,362; quiet small 23,424. All 3,493 failed fires saved to Drive as `failed_fires_v14_7.csv`. Script: `analysis/v14_6/failed_fires_export.py`.
+
+- **Twin test** (share of the 15 most similar past fires that were big; base rate 6%): caught big 30%, MISSED big 7%, false alarm 22%, quiet small 3%. 72% of missed big fires have at most 1 big twin in 15; only 2% have 5+. To the model they look like ordinary small fires, so no re-weighting can find them with these inputs.
+- **Biggest differences, missed vs caught big:** closer to settlements and roads (dist to settlement std diff -1.03, road -0.87), more southern, steeper/higher land, more other fires within 50 km in the last 14 days (+0.72, not a model input; earlier tests found no ranking gain from it), June-July more than spring.
+- **Four groups of misses:** (0) 34%, remote natural fires in AB/SK/BC, median 10 km from road, few people; (1) 25%, BC natural fires (98% BC), 5.8 km from a road; (2) 27%, BC/AB/QC natural fires, 3.4 km from a road; (3) 15%, human-caused (62%), near people (1,300 within 25 km), spring (May), low NDVI, cool, smaller (median 444 ha).
+- **Size:** missed big fires are smaller (median 782 ha vs 1,510 caught); many are not far over the 100 ha line.
+- **Satellite:** satellites saw 36% of missed big fires on the report day or before, vs 57% of caught big fires, 30% of false alarms, 9% of quiet small fires.
+- **Missing data:** no model input is missing in more than 1% of rows, so the gap is missing information, not missing values.
+
+What is missing (see also the missing-information test): what the fire is doing in its first hours, weather after the report, and cause. 88% of groups 0-1 are natural-caused (lightning), but lightning data added no ranking gain, so ignition cause alone does not explain them.
+
 ## Satellite timing audit (2026-10-01)
 Question: the satellite window includes the report day, and report dates have no clock time. Do report-day detections carry the result? The four satellite features were rebuilt from the raw detections in the database for the 2025+ test fires, with and without the report day.
 
