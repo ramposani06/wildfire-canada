@@ -312,6 +312,18 @@ Script: `analysis/v14_6/province_threshold_test.py`. One frozen model (v14.7 tra
 - **The per-province lines also do not hold their target:** 2025+ recall by province is 48-88% against a 65% target (AB 48%, BC 54%, QC 88%).
 - **Reading:** this is a policy choice (equal coverage across provinces versus the most big fires caught per alert), not a model improvement. The national line alone is the better default.
 
+## Over- and under-sampling (2026-10-03)
+Script: `analysis/v14_6/resampling_test.py`. v14.7 features, two forward splits. The current model weights big fires up (`is_unbalance=True`).
+| Setup | PR-AUC 2022-24 (gain) | PR-AUC 2025+ (gain) |
+|---|---|---|
+| Current (big fires weighted up) | 0.539 | 0.541 |
+| No balancing | 0.533 (-0.005) | 0.544 (+0.003) |
+| Undersample small fires 1:1, 5 draws | 0.536 (-0.003) | 0.547 (+0.006) |
+| Undersample small fires 3:1, 5 draws | 0.539 (0.000) | 0.547 (+0.006) |
+| Oversample big fires x3 | 0.538 (0.000) | 0.546 (+0.005) |
+| SMOTE (synthetic big fires, 1:2) | 0.490 (-0.048) | 0.540 (-0.002) |
+- Every 95% range for a non-SMOTE setup crosses zero, and none beats the current setup on both splits. SMOTE is clearly worse on 2022-24 (-0.048, range -0.058 to -0.038). Resampling changes the score scale (mean raw score 0.08-0.30), not the ranking, so the Platt calibrator is still needed. Current setup kept.
+
 ## Satellite timing audit (2026-10-01)
 Question: the satellite window includes the report day, and report dates have no clock time. Do report-day detections carry the result? The four satellite features were rebuilt from the raw detections in the database for the 2025+ test fires, with and without the report day.
 
