@@ -216,6 +216,14 @@ Script: `analysis/v14_6/missed_fires_profile.py`. Model v14.7 trained to 2021, t
 - **Typical values:** missed big fires have a median road distance of 5 km and 243 people within 25 km. Caught big fires have 40 km and 0 people. Weather is almost the same for all four groups.
 - **Reading:** the model mostly learned that far from roads and people means big. Big fires near roads and people (mostly BC and AB, human-caused, spring) look like small fires to it, and weather alone does not separate them. The weak spot is exactly where a big fire matters most for people and property.
 
+## Accessible-fire segment test (2026-10-03)
+Script: `analysis/v14_6/accessible_segment_test.py`. Segment A = within 5 km of a road (70% of fires, 3.6% big, against 30% big elsewhere). Segment B = 1,000+ people within 25 km (55% of fires, 2.7% big). Two forward splits.
+- **The national model ranks well inside the segment.** Segment A: ROC-AUC 0.869 (2022-24) and 0.878 (2025+); PR-AUC 0.24-0.25 on a 3.5% base rate, a lift of 7.0x (the national lift is 4.6x). Segment B: ROC-AUC 0.852 / 0.862, lift 5.8x / 7.2x.
+- **A specialist model trained only on segment fires is not better:** PR-AUC gain -0.032 (-0.051 to -0.011) and -0.012 (-0.030 to +0.006) in segment A. Counting segment fires 3x also gave nothing (-0.011 and -0.005; segment B +0.006 and +0.008, ranges cross zero).
+- **The problem is the alert line, not the ranking.** With one national line (0.695), the model catches 15% of big fires inside segment A and 4% inside segment B, although it ranks them well.
+- **A separate line inside the segment** (65% recall on 2022-24 inside it; 0.51 for A, 0.48 for B), checked on 2025+: inside segment A it catches 43% instead of 15% (precision 27% instead of 42%); across all fires it catches 69% instead of 62% of big fires and flags 17% of fires instead of 14%. Segment B: inside it 40% instead of 4%; overall 67% instead of 62%; flags 16% instead of 14%. Tested on one forward period only.
+- **Suggested use:** a two-tier alert (stricter line for fires near roads or people, where big fires are rare but cost most). This is an operating-rule choice, not a model change.
+
 ## Satellite timing audit (2026-10-01)
 Question: the satellite window includes the report day, and report dates have no clock time. Do report-day detections carry the result? The four satellite features were rebuilt from the raw detections in the database for the 2025+ test fires, with and without the report day.
 
