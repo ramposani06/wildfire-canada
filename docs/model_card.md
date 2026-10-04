@@ -405,6 +405,18 @@ What is missing (see also the missing-information test): what the fire is doing 
 
 **Failed-fires-as-a-dataset test: not informative (selection effect).** Missed big fires vs false alarms were separated with AUC 0.95 by the 22 model inputs, but this is circular: a fire is "missed" because its score is below the alert line and a "false alarm" because it is above it, so the model's own score separates the two groups perfectly (AUC 1.000) and its inputs, which make up the score, separate them almost as well. The top columns (population within 25 km, province, latitude, road distance, NDVI) are simply what the model already uses. Columns the model does not use (distance to settlement, road km within 10 km, nearby fires in 14 days) only look useful because they correlate with road distance and population. Satellite counts added +0.004. No new feature came out of this. The fair way to look for missing information is to test it on top of the score (the missing-information test), which is what the earlier results use.
 
+## What is missing in missed big fires: twin-difference test (2022-26)
+
+Script `analysis/v14_6/twin_difference_test.py`. For each of the 1,131 missed big fires, the 10 most similar small fires (2012-21, same 22 inputs) are found. A column that still differs between the missed fire and its twins is information the model does not have. Control: ordinary small fires vs their own twins (noise level, and time drift since twins are from earlier years).
+
+- **Satellite heat on the report day is the clear gap:** effect +2.0 (MODIS max FRP) and +1.7 (VIIRS max FRP) standard deviations, vs a control of +0.16 and +0.13. About a third of missed big fires were already seen by satellite, almost none of their twins were. Not available at report time (this is step 2).
+- **Distance to settlement:** +0.20 vs control +0.03. Small, and the column is empty for 44% of rows.
+- **Everything else matches the control** (nearby fire counts, BUI, DC, FWI, roads within 5-10 km, day of year): these differences are time drift between the twin years and 2022-26, not something specific to missed fires. `YEAR_clean` is just that time gap.
+- **Wind and aspect (u, v, speed, aspect): no difference** (ranges include zero or are small).
+- **Dryness memory (soil, 30-90 day rain, snow):** not tested here; only 5% of fires were fetched when this ran. Re-run after `dryness_memory_test.py` finishes.
+
+Reading: with the columns we have, the only thing clearly missing in missed fires is what the fire is doing on the day, which is seen by satellites after the report.
+
 ## Satellite timing audit (2026-10-01)
 Question: the satellite window includes the report day, and report dates have no clock time. Do report-day detections carry the result? The four satellite features were rebuilt from the raw detections in the database for the 2025+ test fires, with and without the report day.
 
