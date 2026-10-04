@@ -224,6 +224,25 @@ Script: `analysis/v14_6/accessible_segment_test.py`. Segment A = within 5 km of 
 - **A separate line inside the segment** (65% recall on 2022-24 inside it; 0.51 for A, 0.48 for B), checked on 2025+: inside segment A it catches 43% instead of 15% (precision 27% instead of 42%); across all fires it catches 69% instead of 62% of big fires and flags 17% of fires instead of 14%. Segment B: inside it 40% instead of 4%; overall 67% instead of 62%; flags 16% instead of 14%. Tested on one forward period only.
 - **Suggested use:** a two-tier alert (stricter line for fires near roads or people, where big fires are rare but cost most). This is an operating-rule choice, not a model change.
 
+## Last three checks: interactions, size bands, subgroups (2026-10-03)
+Script: `analysis/v14_6/last_three_checks.py`.
+- **Interaction columns** (road or people x dryness, temperature, wind, slope, elevation, NDVI; NDVI x weather; slope x weather; 5 groups plus all together), added to v14.7 on two forward splits: PR-AUC gain between -0.004 and +0.005, every 95% range crosses zero. Trees already learn interactions; nothing added.
+- **Score by final size (fires 2022-26, alert line 0.695).** Inside the near-road segment the median score is 0.04 for fires under 100 ha and 0.36-0.46 for big ones, but only 16-26% of big fires reach the line. Outside it (more than 5 km from a road) the median is 0.53 for small fires (33% above the line) and 0.86-0.89 for big ones (71-83% above the line). The score separates big from small in both places; the 100 ha line is where the classes overlap, and in accessible areas the whole big-fire group sits below the national line. The score does not rise further with size above 500 ha.
+- **Ranking inside subgroups** (frozen model trained to 2021, 2022-26):
+| Subgroup | Fires | Big | ROC-AUC | PR-AUC | Lift |
+|---|---|---|---|---|---|
+| All fires | 29,155 | 3,369 | 0.900 | 0.541 | 4.7x |
+| Within 5 km of a road | 20,178 | 710 | 0.870 | 0.242 | 6.9x |
+| BC | 7,103 | 532 | **0.797** | 0.244 | **3.3x** |
+| BC + near road | 5,035 | 192 | **0.779** | 0.108 | **2.8x** |
+| AB | 4,459 | 241 | 0.909 | 0.399 | 7.4x |
+| AB + near road | 3,561 | 76 | 0.885 | 0.156 | 7.3x |
+| Human-caused | 13,101 | 267 | 0.864 | 0.162 | 7.9x |
+| April-May | 7,367 | 363 | 0.889 | 0.350 | 7.1x |
+| Rest of Canada (not BC/AB) | 17,593 | 2,596 | 0.910 | 0.595 | 4.0x |
+- **Reading:** in AB, human-caused fires, spring and near-road fires the ranking is good and the miss comes from the single alert line (see the accessible-fire test). **BC is a real ranking weakness**, worst near roads (ROC-AUC 0.78, lift 2.8x). That is where the available report-time data runs out.
+- **v14.7 is frozen** as the main model. The remaining uncertainty is among fires with similar report-time conditions that grow differently.
+
 ## Satellite timing audit (2026-10-01)
 Question: the satellite window includes the report day, and report dates have no clock time. Do report-day detections carry the result? The four satellite features were rebuilt from the raw detections in the database for the 2025+ test fires, with and without the report day.
 
