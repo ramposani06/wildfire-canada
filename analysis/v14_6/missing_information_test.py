@@ -63,13 +63,16 @@ for zn, zm in ZONES.items():
     # group value: leave-one-year-out, score + group columns vs score alone
     zz = z.reset_index(drop=True); lg = np.log(zz.score.clip(1e-4, 1 - 1e-4) / (1 - zz.score.clip(1e-4, 1 - 1e-4)))
     def cv_auc(cols):
-        X = pd.concat([lg.rename("logit_score")] + [zz[c] for c in cols], axis=1); pred = np.zeros(len(zz))
+        # boost ON TOP of the model's score (score is the starting point), so adding nothing can never beat the score itself
+        pred = np.zeros(len(zz)); Xc = zz[cols] if cols else None
+        if not cols: return roc_auc_score(zz.big, lg)
         for Y in sorted(zz.year.unique()):
             te = (zz.year == Y).values
-            mm = LGBMClassifier(n_estimators=150, learning_rate=0.05, max_depth=3, num_leaves=8, min_child_samples=30, subsample=0.8, subsample_freq=1, colsample_bytree=0.8, random_state=0, verbose=-1)
-            pred[te] = mm.fit(X[~te], zz.big[~te]).predict_proba(X[te])[:, 1]
+            mm = LGBMClassifier(n_estimators=100, learning_rate=0.03, max_depth=3, num_leaves=8, min_child_samples=40, subsample=0.8, subsample_freq=1, colsample_bytree=0.8, random_state=0, verbose=-1)
+            mm.fit(Xc[~te], zz.big[~te], init_score=lg[~te].values)
+            pred[te] = mm.predict(Xc[te], raw_score=True) + lg[te].values
         return roc_auc_score(zz.big, pred)
-    base = cv_auc([]); print(f"\nIn-zone AUC with score only (same small model): {base:.3f}")
+    base = cv_auc([]); print(f"\nIn-zone AUC of the model score itself: {base:.3f}")
     out = []
     for g, cols in GROUPS.items():
         if cols and zz[cols].notna().any(axis=1).mean() > 0.3: out.append((g, cv_auc(cols)))
