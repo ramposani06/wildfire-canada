@@ -403,6 +403,8 @@ Fires 2022-26: 29,155. Caught big 2,238; MISSED big 1,131; false alarms 2,362; q
 
 What is missing (see also the missing-information test): what the fire is doing in its first hours, weather after the report, and cause. 88% of groups 0-1 are natural-caused (lightning), but lightning data added no ranking gain, so ignition cause alone does not explain them.
 
+**Failed-fires-as-a-dataset test: not informative (selection effect).** Missed big fires vs false alarms were separated with AUC 0.95 by the 22 model inputs, but this is circular: a fire is "missed" because its score is below the alert line and a "false alarm" because it is above it, so the model's own score separates the two groups perfectly (AUC 1.000) and its inputs, which make up the score, separate them almost as well. The top columns (population within 25 km, province, latitude, road distance, NDVI) are simply what the model already uses. Columns the model does not use (distance to settlement, road km within 10 km, nearby fires in 14 days) only look useful because they correlate with road distance and population. Satellite counts added +0.004. No new feature came out of this. The fair way to look for missing information is to test it on top of the score (the missing-information test), which is what the earlier results use.
+
 ## Satellite timing audit (2026-10-01)
 Question: the satellite window includes the report day, and report dates have no clock time. Do report-day detections carry the result? The four satellite features were rebuilt from the raw detections in the database for the 2025+ test fires, with and without the report day.
 
