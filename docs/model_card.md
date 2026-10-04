@@ -256,6 +256,19 @@ Script: `analysis/v14_6/alternative_targets_test.py`. Same 22 features as v14.7,
 - The model also ranks the smaller targets well (ROC-AUC 0.86-0.89), but its edge over a random guess is smaller (3.0-3.8x against 4.7x), because small fires are harder to tell apart. A target near 4-10 ha is closer to "got past the first attack" than 100 ha, but the data cannot say that for sure.
 - **Duration could not be tested.** `OUT_DATE` is empty for every fire from 2012 to 2024 and 29% filled in 2025 (50-78% in 2004-2011). The 2025 sample (1,774 fires) is not representative and gave weak results (ROC-AUC 0.63-0.69), which should not be trusted. A duration or "escaped initial attack" label needs agency records.
 
+## Training from 2012 only (VIIRS era) vs from 2004 (2026-10-03)
+Script: `analysis/v14_6/viirs_era_test.py`. Same test fires in both setups. 2004-2021 has 113,683 training fires (6.3% big); 2012-2021 has 58,541 (7.5% big).
+| Features | Test | Trained from 2004 (PR / ROC) | Trained from 2012 (PR / ROC) | 2012 vs 2004 |
+|---|---|---|---|---|
+| 22, no satellite | 2022-24 | 0.539 / 0.898 | 0.530 / 0.894 | -0.009 (-0.016 to -0.002) |
+| 22, no satellite | 2025+ | 0.541 / 0.904 | 0.540 / 0.904 | -0.001 (-0.012 to +0.009) |
+| 22 + VIIRS | 2022-24 | 0.592 / 0.910 | 0.587 / 0.906 | -0.005 |
+| 22 + VIIRS | 2025+ | 0.601 / 0.918 | 0.602 / 0.917 | +0.001 |
+| 22 + VIIRS + MODIS | 2022-24 | 0.608 / 0.913 | 0.592 / 0.908 | -0.016 |
+| 22 + VIIRS + MODIS | 2025+ | 0.630 / 0.925 | 0.622 / 0.923 | -0.008 |
+- Training from 2012 never helps: it is the same or slightly worse. Keeping 2004-2011 stays.
+- The satellite rows are reference only (report-day timing risk). They still show that VIIRS alone adds about +0.05 to +0.06 PR-AUC and MODIS another +0.03.
+
 ## Satellite timing audit (2026-10-01)
 Question: the satellite window includes the report day, and report dates have no clock time. Do report-day detections carry the result? The four satellite features were rebuilt from the raw detections in the database for the 2025+ test fires, with and without the report day.
 
