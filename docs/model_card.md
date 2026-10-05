@@ -114,13 +114,16 @@ v14.5 was not rerun.
 | Score at or above 0.770 | 72% | 52% | 16% |
 | Top 15% by score (cut 0.788) | 69% | 53% | 15% |
 
-**By year (v3, not rerun):**
-| | 0.770 rule: flagged / caught / precision | Top 15% rule: caught / precision |
-|---|---|---|
-| 2025 | 11% / 65% / 49% | 76% / 42% |
-| 2026 | 19% / 76% / 55% | 67% / 61% |
+**By year, main model v14.7 (v4 data, trained to 2024, alert line 0.695; `analysis/v14_6/alert_by_year_v14_7.py`):**
+| Test | Fires | Big rate | ROC-AUC (95%) | PR-AUC (95%) | 0.695 rule: flagged / caught / precision | Top 15%: caught / precision |
+|---|---|---|---|---|---|---|
+| 2025 | 6,184 | 9.9% | 0.890 (0.878-0.903) | 0.471 (0.430-0.518) | 14% / 64% / 44% | 65% / 43% |
+| 2026 | 4,961 | 13.5% | 0.916 (0.905-0.926) | 0.599 (0.557-0.644) | 20% / 76% / 50% | 64% / 58% |
+| 2025+ | 11,145 | 11.5% | 0.904 (0.896-0.912) | 0.541 (0.512-0.573) | 17% / 70% / 47% | 66% / 50% |
 
-With the fixed 0.770 rule, the share flagged follows how bad the season is (11% in a milder year, 19% in a bad one). That is expected, not a fault. The top-15% rule always flags 15%, but recall and precision then move by year.
+(The older v3 table for the 24-feature satellite model with the 0.770 rule showed 2025: 11% / 65% / 49% and 2026: 19% / 76% / 55%.)
+
+With a fixed alert line, the share flagged follows how bad the season is (14% in the milder 2025, 20% in the worse 2026). That is expected, not a fault. The top-15% rule always flags 15%, but recall and precision then move by year.
 
 **Top-risk fires (v4, 2025+):** the top 5% of fires by score contain 32% of the big fires, the top 10% contain 54%, the top 15% contain 69%, the top 20% contain 80%, and the top 25% contain 87%.
 
@@ -570,7 +573,7 @@ The gain is about +0.01 on the forward test and about zero on the validation yea
 - **Sensor eras (leave-one-year-out, not forward-looking):** average ROC-AUC is 0.913 for 2004-2011 (MODIS only), 0.916 for 2012-2021 and 0.912 for 2022-2024. Nothing odd when VIIRS appears. The recovered years 2006 (0.881) and 2007 (0.937) look like any other year.
 - **Direction checks (not a strict test):** hotter, drier, windier or less rain all raised the average score, and removing satellite detections lowered it. This shows the average moves the right way, not that every fire does. The effects are small (only 49% of fires went up when hotter, 46% with less rain), so most of the ranking comes from other inputs.
 
-### By province (2025+, v3, not rerun)
+### By province (2025+, v3, v14.6 satellite model, not rerun; for v14.7 by-province results see "Province names filled, province tables redone")
 | Province | Fires | Big | ROC-AUC | PR-AUC |
 |---|---|---|---|---|
 | AB | 1,250 | 19 | 0.932 | 0.281 |
