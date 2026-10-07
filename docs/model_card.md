@@ -522,6 +522,18 @@ Script `analysis/v14_6/within_cell_separation_test.py`. 8 cells with at least 1,
 - Reading: inside the hard cells the 22 report-time inputs give only weak, already-used signals, and training a model just for those cells loses to the national model. There is no extra usable information in these inputs for the populated and accessible fires. Together with the twin test, the only clear missing signal is how the fire behaves on the report day (satellite heat).
 - Decision: no change. v14.7 stays the main model. The feature search is closed.
 
+## Location-relative anomaly features (2026-10-07) - not adopted
+Script `analysis/v14_6/anomaly_features_test.py`. Each fire's NDVI, humidity, temperature and rain minus the normal for its 2 x 3 degree grid cell and month (normals from training fires only, leave-one-out for training rows; normals are for fire days). Two forward splits.
+
+| PR-AUC gain (95% range) | train ≤2021 -> 2022-24 | train ≤2024 -> 2025+ |
+|---|---|---|
+| 4 anomalies (NDVI, humidity, temp, rain) | -0.001 (-0.007 to +0.004) | -0.001 (-0.007 to +0.005) |
+| All 13 weather anomalies | -0.001 (-0.006 to +0.004) | +0.002 (-0.005 to +0.009) |
+| NDVI anomaly only | +0.004 (-0.001 to +0.010) | +0.000 (-0.006 to +0.005) |
+| Month only (control) | +0.002 (-0.003 to +0.008) | -0.001 (-0.007 to +0.004) |
+
+Every range crosses zero on both splits. The model already uses latitude, province and the weather columns, and trees can form place-relative comparisons on their own. Decision: not adopted. v14.7 unchanged.
+
 ## Satellite timing audit (2026-10-01)
 Question: the satellite window includes the report day, and report dates have no clock time. Do report-day detections carry the result? The four satellite features were rebuilt from the raw detections in the database for the 2025+ test fires, with and without the report day.
 
