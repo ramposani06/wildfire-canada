@@ -44,7 +44,7 @@ for k in sorted(set(lab)):
 G = pd.DataFrame(rows, columns=["cell", "fires", "% of fires", "% big", "avg raw score x100", "ROC-AUC", "PR-AUC", "recall %", "precision %", "% of ALL misses"])
 G[["ROC-AUC", "PR-AUC"]] = G[["ROC-AUC", "PR-AUC"]].round(3)
 print(f"1) ROAD x PEOPLE GRID (train<=2021, test 2022-26: {tem.sum():,} fires, {yt.sum():,} big, {miss.sum():,} missed, alert line {THR})")
-print(G.sort_values("% of ALL misses", ascending=False).round(1).to_string(index=False))
+print(G.sort_values("% of ALL misses", ascending=False).round({"% of fires": 1, "% big": 1, "avg raw score x100": 1, "recall %": 1, "precision %": 1, "% of ALL misses": 1}).to_string(index=False))
 print("   (raw score is not a probability; compare the 'avg raw score' with '% big' only after the Platt step in part 2)")
 
 # ---------- 2) segment-specific calibration

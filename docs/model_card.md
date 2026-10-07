@@ -487,6 +487,33 @@ Script `analysis/v14_6/data_segments_test.py`. Main model v14.7. (A) Where the f
 
 Decision: keep all training data. Cleaning or dropping segments does not raise PR-AUC.
 
+## Road x people grid and segment calibration (2026-10-07) - no change adopted
+Script `analysis/v14_6/transition_zone_calibration_test.py`.
+
+**1) Where the misses sit (train ≤2021, test 2022-26, alert line 0.695, 1,130 missed big fires):**
+| Road distance | People within 25 km | % of fires | % big | Recall | % of all misses |
+|---|---|---|---|---|---|
+| 1-5 km | over 100 | 17% | 5.4% | 10% | 21% |
+| 5-20 km | over 100 | 8.5% | 12% | 28% | 19% |
+| under 1 km | over 100 | 45% | 1.5% | 5% | 17% |
+| 5-20 km | 1-100 | 7.4% | 21% | 61% | 16% |
+| over 20 km | 1-100 | 6.0% | 35% | 80% | 11% |
+| 1-5 km | 1-100 | 4.1% | 14% | 42% | 9% |
+
+- The three cells with over 100 people within 25 km hold 57% of all misses. In them the model gives low scores (average raw score 7-36) and few flags (recall 5-28%). The weak zone is accessible and populated country, not simply "near a road".
+- Remote cells are flagged well (over 20 km, no people: recall 98%, precision 57%) and are the main source of false alarms.
+
+**2) Segment-specific calibration (same model, separate curve per segment, two splits):**
+| Segmentation | PR gain 2022-24 | PR gain 2025+ |
+|---|---|---|
+| Road band (4 curves) | +0.002 (+0.001 to +0.003) | -0.001 (-0.002 to +0.000) |
+| Road x people (7 curves) | -0.002 (-0.003 to +0.000) | -0.003 (-0.006 to +0.000) |
+| Province (7 curves) | -0.014 (-0.025 to -0.003) | -0.020 (-0.034 to -0.007) |
+| Cause (2 curves) | +0.002 (+0.000 to +0.004) | -0.011 (-0.021 to -0.000) |
+
+- No segmentation gains on both splits. Province and cause calibration make PR-AUC worse on 2025+. Top-15% capture is unchanged (62-65%). Brier score barely moves (0.0716 to 0.0715 on 2022-24; 0.0689 to 0.0690 on 2025+).
+- Decision: keep one national calibrator. The same ranking model is already well calibrated across segments, and the misses in the populated zone are a ranking limit, not a score-scale problem.
+
 ## Satellite timing audit (2026-10-01)
 Question: the satellite window includes the report day, and report dates have no clock time. Do report-day detections carry the result? The four satellite features were rebuilt from the raw detections in the database for the 2025+ test fires, with and without the report day.
 
