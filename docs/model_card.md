@@ -514,6 +514,14 @@ Script `analysis/v14_6/transition_zone_calibration_test.py`.
 - No segmentation gains on both splits. Province and cause calibration make PR-AUC worse on 2025+. Top-15% capture is unchanged (62-65%). Brier score barely moves (0.0716 to 0.0715 on 2022-24; 0.0689 to 0.0690 on 2025+).
 - Decision: keep one national calibrator. The same ranking model is already well calibrated across segments, and the misses in the populated zone are a ranking limit, not a score-scale problem.
 
+## Inside each road x people cell: is there anything left in the 22 inputs? (2026-10-07)
+Script `analysis/v14_6/within_cell_separation_test.py`. 8 cells with at least 1,500 fires and 100 big fires.
+
+- **Part 1 (all years, single input inside each cell):** the best separators are moderate and the same everywhere: lower humidity (AUC 0.32-0.35, effect -0.4 to -0.6 std), lower NDVI (greener fuel means smaller fires, AUC 0.35-0.40), more northern latitude (AUC 0.60-0.65) and province (AUC 0.59-0.65). Nothing above AUC 0.68 in any cell. These are inputs the model already uses.
+- **Part 2 (a model trained only inside the cell, tested on 2022-26 fires of that cell vs the national model):** the national model is better in 6 of 8 cells (ROC-AUC differences -0.012 to -0.094, ranges below zero) and equal in the 2 remote cells. In the weakest cell (road 1-5 km, over 100 people, 267 big fires) national ROC-AUC 0.806 and PR-AUC 0.183 beat the cell model's 0.783 and 0.166.
+- Reading: inside the hard cells the 22 report-time inputs give only weak, already-used signals, and training a model just for those cells loses to the national model. There is no extra usable information in these inputs for the populated and accessible fires. Together with the twin test, the only clear missing signal is how the fire behaves on the report day (satellite heat).
+- Decision: no change. v14.7 stays the main model. The feature search is closed.
+
 ## Satellite timing audit (2026-10-01)
 Question: the satellite window includes the report day, and report dates have no clock time. Do report-day detections carry the result? The four satellite features were rebuilt from the raw detections in the database for the 2025+ test fires, with and without the report day.
 
