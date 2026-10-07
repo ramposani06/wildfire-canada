@@ -1,7 +1,13 @@
 # Count all fires by cause (natural / human / other) and big-fire rate. Run in Colab.
 import pandas as pd
-D = '/content/drive/MyDrive/'
-df = pd.read_csv(D + 'unified_dataset_2004_2026_FINAL_v4.csv', low_memory=False)
+import os, glob
+NAME = 'unified_dataset_2004_2026_FINAL_v4.csv'
+path = os.path.join(os.environ.get('WF_FOLDER', '/content/drive/MyDrive'), NAME)
+if not os.path.exists(path):
+    hits = glob.glob('/content/drive/**/' + NAME, recursive=True)
+    print('found:', hits)
+    path = hits[0]
+df = pd.read_csv(path, low_memory=False)
 print('rows:', len(df))
 
 c = df['CAUSE'].astype(str).str.strip().str.upper().str[0]
