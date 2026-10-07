@@ -462,6 +462,31 @@ Script `analysis/v14_6/dryness_memory_test.py`. 12 ERA5-Land columns for all 142
 - Soil moisture, rain over 14-90 days, 30-day temperature and wind/aspect show no difference beyond the control.
 - Reading: nothing except satellite heat is above about 0.2 standard deviations. Snow melt is the only dryness-type lead, and in the earlier gain test the snow columns added no PR-AUC (+0.003 and +0.000), so it is not worth adding.
 
+## Which data hurts the model? (2026-10-07)
+Script `analysis/v14_6/data_segments_test.py`. Main model v14.7. (A) Where the frozen model (train ≤2021, alert line 0.695) is weak on 2022-26: 29,155 fires, 3,369 big, 1,130 missed, 2,367 false alarms. (B) Dropping one data segment from training only, test unchanged, on two forward splits.
+
+**A) Where it is weak** (share of all fires vs share of all misses):
+| Segment | % of fires | % big | Recall | % of all misses |
+|---|---|---|---|---|
+| Road under 1 km | 48% | 1.8% | 12% | 20% |
+| Road 1-5 km | 21% | 7.4% | 25% | 30% |
+| Road 5-20 km | 17% | 17% | 53% | 35% |
+| Road over 20 km | 14% | 45% | 91% | 15% (59% of all false alarms) |
+| People within 25 km: 0 | 8% | 53% | 98% | 3% (41% of false alarms) |
+| People 1-100 | 20% | 22% | 67% | 38% |
+| People over 100 | 72% | 3.9% | 17% | 59% |
+| BC | 29.5% | 7.1% | 21% | 42.5% (precision 28%) |
+| Cause human | 45% | 2.0% | 20% | 19% |
+| Cause natural | 50% | 20% | 71% | 76% (90% of false alarms) |
+| Apr-May | 25% | 4.9% | 36% | 20% |
+
+- Misses concentrate in the middle of the road-distance range (1-20 km hold 38% of fires but 65% of misses) and in BC. False alarms concentrate in remote fires (over 20 km from a road: 59% of false alarms; no people nearby: 41%). The model's remote = big rule is right most of the time (precision 54-56% there) but is the main source of false alarms.
+- Northwest Territories: recall 95%, precision 58%, ROC-AUC 0.7 (half of fires are big, so flagging almost everything works).
+
+**B) Removing a segment from training:** no segment hurts. Nothing gained on both splits with a range above zero (road bands, people bands, months, cause, prescribed-style sizes near the 100 ha line, provinces, pre-2012 years). Removing the zero-population fires (-0.023 on 2025+) and natural-cause fires (-0.117 and -0.053) lowered PR-AUC on both splits, so those segments help the model. Fires near the 100 ha line (50-99 ha and 100-150 ha) can be dropped or kept with no change (±0.003), so label noise at the cutoff is not a problem.
+
+Decision: keep all training data. Cleaning or dropping segments does not raise PR-AUC.
+
 ## Satellite timing audit (2026-10-01)
 Question: the satellite window includes the report day, and report dates have no clock time. Do report-day detections carry the result? The four satellite features were rebuilt from the raw detections in the database for the 2025+ test fires, with and without the report day.
 

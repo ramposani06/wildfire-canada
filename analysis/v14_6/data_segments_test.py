@@ -49,7 +49,7 @@ for k, mk in seg.items():
     rows.append((k, mk.sum(), 100 * mk.mean(), 100 * yy.mean(), roc_auc_score(yy, ss), average_precision_score(yy, ss), 100 * (aa & (yy == 1)).sum() / yy.sum(),
                  100 * (aa & (yy == 1)).sum() / max(aa.sum(), 1), 100 * miss[mk].sum() / miss.sum(), 100 * fa[mk].sum() / fa.sum()))
 A = pd.DataFrame(rows, columns=["segment", "fires", "% of fires", "% big", "ROC-AUC", "PR-AUC", "recall %", "precision %", "% of ALL misses", "% of ALL false alarms"])
-print(A.round(1).to_string(index=False))
+A[["ROC-AUC", "PR-AUC"]] = A[["ROC-AUC", "PR-AUC"]].round(3); print(A.round(1).to_string(index=False))
 print("   (a segment with a bigger share of misses than of fires is where big fires slip through)")
 
 # ---------- B) does removing a segment from training help?
