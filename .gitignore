@@ -16,3 +16,4 @@ __pycache__/
 
 # Keep trained model bundles — these ARE the deliverable
 !models/*.pkl
+site/

@@ -4,6 +4,12 @@ This project went through many iterations before landing on the current producti
 
 Every version below is a real, distinct model that was actually trained and saved during this project. Rejected ideas are listed too — the rejections are as much a part of the record as the adoptions.
 
+
+## GitHub Pages site (automatic)
+- Added `automation/build_site.py` and `.github/workflows/site.yml`: every push to main rebuilds one public page with the README, model card and monitoring page. Tests run on the Actions tab (they do not block the site).
+- The monitoring page still shows the older v14.6 numbers and says so at the top of the page.
+- Not automated yet: daily scoring of newly reported fires. It needs the v14.7 model file in the repo, a road and population lookup that works outside Colab, Earth Engine sign-in for NDVI and terrain, and a checked active-fire feed.
+
 ## v3 / v4 — first models
 
 Random Forest baseline classifiers, first pass at features (weather + a first version of satellite pre-detection). `model_v3_fixed_satellite.pkl`, `model_v4_rf.pkl`.

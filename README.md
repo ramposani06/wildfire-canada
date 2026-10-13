@@ -1,5 +1,7 @@
 # Wildfire Canada — Big-Fire Risk Model
 
+**One link to everything:** https://ramposani06.github.io/wildfire-canada/ (README, model card, monitoring page; rebuilt automatically on every push by `.github/workflows/site.yml`).
+
 Predicting whether a newly reported Canadian wildfire will grow into a **big fire (>100 hectares)**, using only information available in the first hours after a fire is reported: weather, terrain, vegetation, satellite heat signal, and accessibility.
 
 **Main model (v14.7): 22 features, no satellite, all known before the report day** (20 weather/land/people features plus latitude and longitude). 2025+ forward test: ROC-AUC 0.904 (0.897-0.912), PR-AUC 0.541 (0.513-0.571); alert threshold 0.695 catches 70% of big fires with 47% precision. The 24-feature satellite model below is an optional upgrade for when same-day detections are known to be available before scoring.
