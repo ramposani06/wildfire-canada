@@ -3,8 +3,8 @@
 #   - people within 10 km and 25 km (from kontur_pop_ca.gpkg)
 # then CHECKS it against the real values stored for past fires.
 # Output: MyDrive/wildfire_project/automation/road_pop_grid.npz  (a few MB)
-# Resumable: road distance is saved after every latitude band; run again to continue.
-# Takes roughly 20-40 minutes. Keep the tab open.
+# Resumable: the road points are saved to Drive after the first (slow) step; run again to skip it.
+# Takes roughly 10-25 minutes. Keep the tab open.
 import os, glob, time, math
 import numpy as np, pandas as pd
 import geopandas as gpd, shapely, pyogrio
@@ -28,73 +28,63 @@ POP = find("kontur_pop_ca.gpkg")
 CSV = find("unified_dataset_2004_2026_FINAL_v4.csv")
 OUT_DIR = f"{DRIVE}/wildfire_project/automation"; os.makedirs(OUT_DIR, exist_ok=True)
 OUT = f"{OUT_DIR}/road_pop_grid.npz"
-PART = f"{OUT_DIR}/dist_partial.npz"
 
 LAT0, LAT1, LON0, LON1 = 41.0, 70.0, -142.0, -52.0
 RES_D, RES_P = 0.02, 0.05
-TILE_LAT, TILE_LON = 100, 150            # grid cells per tile (2.0 x 3.0 degrees)
-MARGINS = [0.5, 2.0, 6.0, 15.0]          # degrees of extra roads to read, tried in order
-CAP_M = 600_000                          # unresolved points get this (lower bound), fits in uint16 x 10 m
 t0 = time.time()
 def log(*a): print(f"[{(time.time()-t0)/60:5.1f} min]", *a, flush=True)
 
 to3347 = Transformer.from_crs(4326, 3347, always_xy=True)
 layer = pyogrio.list_layers(ROADS)[0][0]
 roads_crs = CRS.from_user_input(pyogrio.read_info(ROADS, layer=layer)["crs"])
-to_roads = Transformer.from_crs(4326, roads_crs, always_xy=True)
-log("roads layer:", layer, "| crs:", roads_crs.to_string())
-
-def read_roads(lon_lo, lat_lo, lon_hi, lat_hi):
-    bb = to_roads.transform_bounds(lon_lo, lat_lo, lon_hi, lat_hi, densify_pts=21)
-    try:
-        g = gpd.read_file(ROADS, layer=layer, bbox=tuple(bb), engine="pyogrio", columns=[])
-    except Exception:
-        g = gpd.read_file(ROADS, layer=layer, bbox=tuple(bb), engine="pyogrio")
-    if len(g) == 0: return None
-    g = g[g.geometry.notna()]
-    if roads_crs.to_epsg() != 3347: g = g.to_crs(3347)
-    return g.geometry.values
+n_feat = int(pyogrio.read_info(ROADS, layer=layer)["features"])
+log("roads layer:", layer, "| crs:", roads_crs.to_string(), "| road pieces:", f"{n_feat:,}")
 
 # ------------------------------------------------------------ road distance
+# Fast method: turn every road into points about 500 m apart (read in chunks so memory stays small),
+# then ask a KD-tree for the nearest road point of every grid cell. Error is a few hundred metres at most.
 n_lat = int(round((LAT1 - LAT0) / RES_D)); n_lon = int(round((LON1 - LON0) / RES_D))
-dist = np.full((n_lat, n_lon), np.nan, dtype=np.float32)
-done_bands = 0
-if os.path.exists(PART):
-    z = np.load(PART); dist = z["dist"]; done_bands = int(z["done"]); log("resuming at band", done_bands)
+PTS = f"{OUT_DIR}/road_points_3347.npy"
+if os.path.exists(PTS):
+    road_xy = np.load(PTS); log(f"loaded saved road points: {len(road_xy):,}")
+else:
+    CHUNK = 150_000
+    to_3347_from_roads = None if roads_crs.to_epsg() == 3347 else Transformer.from_crs(roads_crs, 3347, always_xy=True)
+    parts = []
+    for start in range(0, n_feat, CHUNK):
+        try:
+            _, _, geom, _ = pyogrio.read(ROADS, layer=layer, columns=[], skip_features=start, max_features=CHUNK)
+        except Exception:
+            _, _, geom, _ = pyogrio.read(ROADS, layer=layer, skip_features=start, max_features=CHUNK)
+        g = shapely.from_wkb(geom)
+        g = g[~shapely.is_missing(g)]
+        g = g[~shapely.is_empty(g)]
+        xy = shapely.get_coordinates(shapely.segmentize(g, 500.0))
+        if to_3347_from_roads is not None:
+            x, y = to_3347_from_roads.transform(xy[:, 0], xy[:, 1]); xy = np.column_stack([x, y])
+        key = pd.DataFrame({"a": (xy[:, 0] // 250).astype(np.int64), "b": (xy[:, 1] // 250).astype(np.int64)})
+        parts.append(xy[~key.duplicated().values].astype(np.float32))
+        log(f"roads read {min(start + CHUNK, n_feat):,}/{n_feat:,}")
+        del g, xy, key
+    road_xy = np.vstack(parts); del parts
+    key = pd.DataFrame({"a": (road_xy[:, 0] // 250).astype(np.int64), "b": (road_xy[:, 1] // 250).astype(np.int64)})
+    road_xy = road_xy[~key.duplicated().values]
+    np.save(PTS, road_xy); log(f"road points kept: {len(road_xy):,} (saved)")
 
-def tile_dist(lat_c, lon_c):
-    x, y = to3347.transform(lon_c, lat_c)
-    pts = shapely.points(x, y)
-    out = np.full(len(x), np.nan)
-    pending = np.arange(len(x))
-    for margin in MARGINS:
-        if len(pending) == 0: break
-        lat_lo, lat_hi = lat_c.min() - margin, lat_c.max() + margin
-        pad = margin / max(math.cos(math.radians(min(80.0, abs(lat_hi)))), 0.2)
-        geoms = read_roads(lon_c.min() - pad, lat_lo, lon_c.max() + pad, lat_hi)
-        if geoms is None: continue
-        tree = shapely.STRtree(geoms)
-        idx = tree.nearest(pts[pending])
-        d = shapely.distance(pts[pending], geoms[idx])
-        safe = margin * 111_000 * 0.8                 # nearest road is surely inside the window
-        ok = d <= safe
-        out[pending[ok]] = d[ok]
-        pending = pending[~ok]
-    out[np.isnan(out)] = CAP_M
-    return out
-
-n_bands = n_lat // TILE_LAT + (n_lat % TILE_LAT > 0)
-for b in range(done_bands, n_bands):
-    i0, i1 = b * TILE_LAT, min((b + 1) * TILE_LAT, n_lat)
-    for j0 in range(0, n_lon, TILE_LON):
-        j1 = min(j0 + TILE_LON, n_lon)
-        ii, jj = np.meshgrid(np.arange(i0, i1), np.arange(j0, j1), indexing="ij")
-        lat_c = LAT0 + (ii.ravel() + 0.5) * RES_D
-        lon_c = LON0 + (jj.ravel() + 0.5) * RES_D
-        dist[i0:i1, j0:j1] = tile_dist(lat_c, lon_c).reshape(ii.shape)
-    np.savez(PART, dist=dist, done=b + 1)
-    log(f"road band {b+1}/{n_bands} done (lat {LAT0 + i0*RES_D:.1f} to {LAT0 + i1*RES_D:.1f})")
+from scipy.spatial import cKDTree
+tree = cKDTree(road_xy)
+lat_c = LAT0 + (np.arange(n_lat) + 0.5) * RES_D
+lon_c = LON0 + (np.arange(n_lon) + 0.5) * RES_D
+dist = np.empty((n_lat, n_lon), dtype=np.float32)
+LOg = np.broadcast_to(lon_c, (n_lat, n_lon))
+for i in range(0, n_lat, 50):
+    la_blk = np.broadcast_to(lat_c[i:i + 50, None], (min(50, n_lat - i), n_lon))
+    gx, gy = to3347.transform(LOg[i:i + 50].ravel(), la_blk.ravel())
+    d, _ = tree.query(np.column_stack([gx, gy]), k=1, workers=-1)
+    dist[i:i + 50] = d.reshape(-1, n_lon)
+log("road distance grid done")
 dist_10m = np.clip(np.round(dist / 10.0), 0, 65535).astype(np.uint16)
+del tree
 
 # --------------------------------------------------------------- population
 log("reading population hexagons ...")
