@@ -5,6 +5,11 @@ This project went through many iterations before landing on the current producti
 Every version below is a real, distinct model that was actually trained and saved during this project. Rejected ideas are listed too — the rejections are as much a part of the record as the adoptions.
 
 
+## Automatic daily scoring
+- Added `automation/daily_score.py`, `automation/road_pop_lookup.py` and `.github/workflows/daily.yml`: scores new fires twice a day with the frozen v14.7 model, logs size and status, and rebuilds the site (new Live scores page). Eight tests in `tests/test_daily_score.py` (fake data, no network).
+- Added the v14.7 model files to `models/` and a road/population lookup grid built from the NRN and Kontur files.
+- Not tested against the real feed or Earth Engine yet (first run needs the feed column names confirmed and the Earth Engine secret).
+
 ## GitHub Pages site (automatic)
 - Added `automation/build_site.py` and `.github/workflows/site.yml`: every push to main rebuilds one public page with the README, model card and monitoring page. Tests run on the Actions tab (they do not block the site).
 - The monitoring page still shows the older v14.6 numbers and says so at the top of the page.

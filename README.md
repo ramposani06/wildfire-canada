@@ -46,6 +46,12 @@ A one-page health check (alert rate by month, calibration, missing data, drift) 
 
 Full details, QA audit, data audit and limits: [`docs/model_card.md`](docs/model_card.md). The older v14.1 card is kept in [`docs/archive/`](docs/archive/model_card_v14_1.md).
 
+## Automatic daily scoring (GitHub)
+
+`.github/workflows/daily.yml` runs twice a day. It downloads the active-fire list, scores every newly reported fire once with the frozen v14.7 model (`automation/daily_score.py`), tracks how big each fire gets, saves `automation/data/scored_log.csv`, and rebuilds the site. The **Live scores** page shows the newest scores and a running count of big fires that were flagged. The model is never retrained by this job, so the log is a clean forward test for 2027.
+
+Road distance and population come from a small pre-built grid (`automation/data/road_pop_grid.npz`, built by `automation/colab_step2_lookup.py`; it matches the real stored values for 6,000 past fires within 1 km for 97% of road distances). Earth Engine (NDVI, elevation, slope) needs the secret `EE_SERVICE_ACCOUNT_JSON`.
+
 ## Approach
 
 This project follows one rule above all others: **an idea only counts if it survives a genuinely held-out forward test, not just cross-validation.**

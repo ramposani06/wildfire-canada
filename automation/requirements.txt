@@ -1,0 +1,8 @@
+pandas
+numpy
+scikit-learn
+lightgbm
+joblib
+requests
+earthengine-api
+markdown

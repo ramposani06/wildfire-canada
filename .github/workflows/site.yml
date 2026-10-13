@@ -6,6 +6,7 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+  workflow_call:               # lets the daily scoring workflow rebuild the site after it saves the log
 
 permissions:
   contents: read

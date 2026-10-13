@@ -17,3 +17,6 @@ __pycache__/
 # Keep trained model bundles — these ARE the deliverable
 !models/*.pkl
 site/
+
+# keep the small daily scoring log (the rule above ignores other CSVs)
+!automation/data/scored_log.csv

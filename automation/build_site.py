@@ -7,6 +7,7 @@ Pages made:
   status.json      when the site was built and from which commit
 Run:  python automation/build_site.py   (writes ./site)
 """
+import html as _html
 import json
 import os
 import re
@@ -32,7 +33,8 @@ code,pre{background:var(--code);border-radius:4px} code{padding:1px 4px} pre{pad
 footer{color:var(--mut);font-size:14px;margin-top:40px;border-top:1px solid var(--line);padding-top:12px}
 """
 
-NAV = ('<nav><a href="index.html">Overview</a><a href="model_card.html">Model card</a>'
+NAV = ('<nav><a href="index.html">Overview</a><a href="live.html">Live scores</a>'
+       '<a href="model_card.html">Model card</a>'
        '<a href="dashboard.html">Monitoring (older)</a><a href="status.json">Status</a></nav>')
 
 
@@ -57,6 +59,52 @@ def fix_links(html):
     return html
 
 
+LIVE_CSS = (".al{background:rgba(179,38,30,.14)} .num{text-align:right} "
+            ".kpi{display:flex;gap:12px;flex-wrap:wrap;margin:12px 0} "
+            ".kpi div{border:1px solid var(--line);border-radius:8px;padding:8px 14px;min-width:120px} "
+            ".kpi b{display:block;font-size:22px}")
+
+
+def live_page(stamp):
+    """Page with the newest scored fires and a running scorecard, from automation/data/scored_log.csv."""
+    import pandas as pd
+    path = os.path.join(ROOT, "automation", "data", "scored_log.csv")
+    head = "<h1>Live scores</h1>"
+    if not os.path.exists(path):
+        return page("Live scores", head + "<p>No fires have been scored yet. The daily job fills this page "
+                    "(see the Actions tab on GitHub).</p>", stamp)
+    log = pd.read_csv(path)
+    if log.empty:
+        return page("Live scores", head + "<p>The log is empty so far.</p>", stamp)
+    log["ha_max"] = pd.to_numeric(log["ha_max"], errors="coerce")
+    big = log["big_so_far"].astype(str).str.lower().eq("true")
+    alert = log["alert"].astype(str).str.lower().eq("true")
+    n, n_alert, n_big = len(log), int(alert.sum()), int(big.sum())
+    caught = int((big & alert).sum())
+    last = str(log["last_seen_utc"].max())
+    kpi = (f'<div class="kpi"><div><b>{n}</b>fires scored</div><div><b>{n_alert}</b>flagged (red)</div>'
+           f'<div><b>{n_big}</b>over 100 ha so far</div>'
+           f'<div><b>{caught} of {n_big}</b>big fires that were flagged</div></div>')
+    note = ("<p>Every fire is scored once, when it first appears, with the frozen v14.7 model. "
+            "Nothing here is changed afterwards, so this is a clean forward test. "
+            "Fires that are still burning can still grow, so the counts above only go up. "
+            "A red row means the raw score is above the alert line "
+            f"({log['threshold'].dropna().iloc[-1] if log['threshold'].notna().any() else 'n/a'}). "
+            f"Last update: {_html.escape(last)} UTC.</p>")
+    recent = log.sort_values(["first_seen_utc", "raw_score"], ascending=[False, False]).head(60)
+    rows = []
+    for _, r in recent.iterrows():
+        cls = ' class="al"' if str(r["alert"]).lower() == "true" else ""
+        size = "" if pd.isna(r["ha_max"]) else f"{r['ha_max']:,.0f}"
+        rows.append(f"<tr{cls}><td>{_html.escape(str(r['start']))}</td><td>{_html.escape(str(r['agency']))}</td>"
+                    f"<td>{_html.escape(str(r['name']))}</td><td class=\"num\">{r['raw_score']:.3f}</td>"
+                    f"<td class=\"num\">{r['chance_big'] * 100:.0f}%</td><td class=\"num\">{size}</td>"
+                    f"<td>{_html.escape(str(r['status']))}</td></tr>")
+    table = ("<table><thead><tr><th>Started</th><th>Agency</th><th>Fire</th><th>Score</th><th>Chance big</th>"
+             "<th>Size now (ha)</th><th>Status</th></tr></thead><tbody>" + "".join(rows) + "</tbody></table>")
+    return page("Live scores", f"<style>{LIVE_CSS}</style>" + head + kpi + note + table, stamp)
+
+
 def main():
     if os.path.exists(OUT):
         shutil.rmtree(OUT)
@@ -75,6 +123,8 @@ def main():
     open(os.path.join(OUT, "model_card.html"), "w", encoding="utf-8").write(
         page("Model card", fix_links(md_to_html(card)), stamp))
 
+    open(os.path.join(OUT, "live.html"), "w", encoding="utf-8").write(live_page(stamp))
+
     dash = open(os.path.join(ROOT, "monitoring", "dashboard.html"), encoding="utf-8").read()
     banner = ('<div style="background:#fff3cd;color:#5c4400;padding:8px 16px;font:14px system-ui">'
               'This dashboard still shows the older v14.6 numbers. The current numbers (v14.7) are in the '
@@ -83,7 +133,7 @@ def main():
     open(os.path.join(OUT, "dashboard.html"), "w", encoding="utf-8").write(dash)
 
     json.dump({"built_utc": now, "commit": sha, "model": "v14.7 (single LightGBM, 22 features)",
-               "pages": ["index.html", "model_card.html", "dashboard.html"]},
+               "pages": ["index.html", "live.html", "model_card.html", "dashboard.html"]},
               open(os.path.join(OUT, "status.json"), "w"), indent=2)
     open(os.path.join(OUT, ".nojekyll"), "w").close()
     print("site built:", sorted(os.listdir(OUT)))

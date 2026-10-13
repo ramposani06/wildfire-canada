@@ -1,0 +1,47 @@
+name: Daily scoring
+
+# Twice a day: download the active-fire list, score new fires with the frozen v14.7 model,
+# save the log, then rebuild the site. Needs the secret EE_SERVICE_ACCOUNT_JSON.
+on:
+  schedule:
+    - cron: "23 15 * * *"      # about 8:23 am Pacific in summer
+    - cron: "23 3 * * *"       # about 8:23 pm Pacific in summer
+  workflow_dispatch:           # "Run workflow" button
+
+permissions:
+  contents: write
+
+concurrency:
+  group: daily-scoring
+  cancel-in-progress: false
+
+jobs:
+  score:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: automation/requirements.txt
+      - run: pip install -r automation/requirements.txt
+      - name: Score new fires
+        env:
+          EE_SERVICE_ACCOUNT_JSON: ${{ secrets.EE_SERVICE_ACCOUNT_JSON }}
+        run: python automation/daily_score.py
+      - name: Save the log
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add automation/data/scored_log.csv automation/data/latest_run.json
+          git diff --cached --quiet || (git commit -m "Daily scoring log" && git pull --rebase -q && git push -q)
+
+  site:
+    needs: score
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    uses: ./.github/workflows/site.yml
