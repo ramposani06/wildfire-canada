@@ -5,7 +5,11 @@ Build the grid once with automation/colab_step2_lookup.py.
 import os
 import numpy as np
 
-DEFAULT_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "road_pop_grid.npz")
+_HERE = os.path.dirname(os.path.abspath(__file__))
+# the file may sit in automation/data/ or directly in automation/ (both work)
+DEFAULT_PATH = next((p for p in (os.path.join(_HERE, "data", "road_pop_grid.npz"),
+                                 os.path.join(_HERE, "road_pop_grid.npz")) if os.path.exists(p)),
+                    os.path.join(_HERE, "data", "road_pop_grid.npz"))
 
 
 class RoadPopLookup:
