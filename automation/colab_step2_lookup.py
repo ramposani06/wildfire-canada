@@ -8,6 +8,7 @@
 import os, glob, time, math
 import numpy as np, pandas as pd
 import geopandas as gpd, shapely, pyogrio
+from pyogrio.raw import read as raw_read
 from pyproj import CRS, Transformer
 from scipy.signal import fftconvolve
 from scipy.stats import spearmanr
@@ -53,9 +54,9 @@ else:
     parts = []
     for start in range(0, n_feat, CHUNK):
         try:
-            _, _, geom, _ = pyogrio.read(ROADS, layer=layer, columns=[], skip_features=start, max_features=CHUNK)
+            _, _, geom, _ = raw_read(ROADS, layer=layer, columns=[], skip_features=start, max_features=CHUNK)
         except Exception:
-            _, _, geom, _ = pyogrio.read(ROADS, layer=layer, skip_features=start, max_features=CHUNK)
+            _, _, geom, _ = raw_read(ROADS, layer=layer, skip_features=start, max_features=CHUNK)
         g = shapely.from_wkb(geom)
         g = g[~shapely.is_missing(g)]
         g = g[~shapely.is_empty(g)]
