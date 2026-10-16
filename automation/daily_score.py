@@ -242,8 +242,30 @@ def run(feed: pd.DataFrame, log: pd.DataFrame, deps: dict, now=None) -> tuple:
     return log[LOG_COLS], stats
 
 
+def _annotate(level, title, msg):
+    """GitHub shows these lines as annotations on the run page (and the API can read them)."""
+    print(f"::{level} title={title}::{str(msg).replace(chr(10), ' | ')[:900]}")
+
+
 def main():
-    feed = fetch_feed()
+    try:
+        _main()
+    except SystemExit:
+        raise
+    except Exception as e:  # noqa: BLE001
+        import traceback
+        traceback.print_exc()
+        _annotate("error", "Daily scoring failed", f"{type(e).__name__}: {e}")
+        sys.exit(1)
+
+
+def _main():
+    r = requests.get(FEED_URL, timeout=60)
+    r.raise_for_status()
+    from io import StringIO
+    raw = pd.read_csv(StringIO(r.text))
+    _annotate("notice", "Feed columns", f"{len(raw)} rows; columns={list(raw.columns)}")
+    feed = normalise_feed(raw)
     log = pd.read_csv(LOG_PATH) if os.path.exists(LOG_PATH) else pd.DataFrame(columns=LOG_COLS)
     deps = {"weather": fetch_weather, "terrain": EarthEngineTerrain(), "model": Model()}
     from road_pop_lookup import RoadPopLookup
@@ -253,8 +275,13 @@ def main():
     log.to_csv(LOG_PATH, index=False)
     json.dump(stats, open(RUN_PATH, "w"), indent=1)
     print(json.dumps(stats, indent=1))
+    _annotate("notice", "Run summary", f"feed={stats['feed_fires']} new_scored={stats['new_scored']} "
+              f"new_failed={stats['new_failed']} updated={stats['updated']} closed={stats['closed']}")
+    for e in stats["errors"][:3]:
+        _annotate("warning", "Fire not scored", e)
     if stats["new_failed"] and not stats["new_scored"]:
-        sys.exit("Every new fire failed to score; see errors above.")
+        _annotate("error", "Every new fire failed", stats["errors"][0] if stats["errors"] else "")
+        sys.exit(1)
 
 
 if __name__ == "__main__":
