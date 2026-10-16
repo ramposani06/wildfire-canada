@@ -25,7 +25,16 @@ sys.path.insert(0, HERE)
 sys.path.insert(0, os.path.join(ROOT, "modeling"))
 from feature_config import PROVINCE_MAP  # noqa: E402
 
-FEED_URL = os.environ.get("ACTIVE_FIRES_URL", "https://cwfis.cfs.nrcan.gc.ca/downloads/activefires/activefires.csv")
+# Tried in this order; the first one that answers is used. (The old .../downloads/activefires/activefires.csv
+# link returns 404, so the feed now comes from the CWFIS web feature service as CSV.)
+FEED_URLS = [u for u in [
+    os.environ.get("ACTIVE_FIRES_URL"),
+    "https://geoserver.cwfif.nrcan.gc.ca/geoserver/wfs?service=WFS&version=2.0.1&request=GetFeature&outputFormat=csv"
+    "&typeName=public:cwfif_national_activefires&sortBy=agency_code+A,record_start+D"
+    "&CQL_FILTER=now()%3E=record_start%20AND%20now()%3C=record_end",
+    "https://cwfis.cfs.nrcan.gc.ca/geoserver/public/ows?service=WFS&version=1.0.0&request=GetFeature"
+    "&typeName=public:activefires_current&outputFormat=csv",
+] if u]
 LOG_PATH = os.path.join(HERE, "data", "scored_log.csv")
 RUN_PATH = os.path.join(HERE, "data", "latest_run.json")
 MODEL_DIR = os.path.join(ROOT, "models")
@@ -42,11 +51,12 @@ LOG_COLS = ["fire_id", "agency", "name", "start", "first_seen_utc", "last_seen_u
 COLS = {
     "lat": ["lat", "latitude"],
     "lon": ["lon", "long", "longitude"],
-    "start": ["startdate", "start_date", "firedate", "fire_date", "rep_date", "reportdate", "report_date"],
-    "ha": ["hectares", "size_ha", "area_ha", "ha", "size", "area"],
-    "agency": ["agency", "src_agency", "source_agency"],
-    "name": ["firename", "fire_name", "name", "fire_id", "id"],
-    "stage": ["stage_of_control", "stageofcontrol", "stage", "status", "fire_status"],
+    "start": ["startdate", "start_date", "fire_start_date", "firedate", "fire_date", "ignition_date", "reported_date",
+              "rep_date", "reportdate", "report_date", "discovery_date"],
+    "ha": ["hectares", "current_size", "size_ha", "area_ha", "ha", "size", "area"],
+    "agency": ["agency", "agency_code", "src_agency", "source_agency"],
+    "name": ["firename", "fire_name", "name", "fire_number", "fire_num", "fire_id", "id"],
+    "stage": ["stage_of_control", "stageofcontrol", "stage", "fire_status", "status"],
 }
 REQUIRED = ["lat", "lon", "start"]
 
@@ -60,6 +70,13 @@ def normalise_feed(raw: pd.DataFrame) -> pd.DataFrame:
         for o in options:
             if o in lower:
                 pick[canon] = lower[o]; break
+    if "lat" not in pick or "lon" not in pick:          # some feeds only carry a WKT point: POINT(lon lat)
+        g = next((lower[k] for k in ("geom", "the_geom", "geometry", "shape") if k in lower), None)
+        if g is not None:
+            xy = raw[g].astype(str).str.extract(r"POINT\s*\(\s*(-?[\d.]+)\s+(-?[\d.]+)")
+            raw = raw.assign(_lon=pd.to_numeric(xy[0], errors="coerce"), _lat=pd.to_numeric(xy[1], errors="coerce"))
+            lower = {c.lower().strip(): c for c in raw.columns}
+            pick["lon"], pick["lat"] = "_lon", "_lat"
     missing = [c for c in REQUIRED if c not in pick]
     if missing:
         raise KeyError(f"Active-fire list has no column for {missing}. Columns found: {list(raw.columns)}. "
@@ -81,11 +98,25 @@ def normalise_feed(raw: pd.DataFrame) -> pd.DataFrame:
     return out.drop_duplicates("fire_id").reset_index(drop=True)
 
 
-def fetch_feed(http_get=requests.get) -> pd.DataFrame:
-    r = http_get(FEED_URL, timeout=60)
-    r.raise_for_status()
+def fetch_raw_feed(http_get=requests.get) -> tuple:
+    """Return (raw table, url used). Tries each address in FEED_URLS until one gives a table."""
     from io import StringIO
-    return normalise_feed(pd.read_csv(StringIO(r.text)))
+    problems = []
+    for url in FEED_URLS:
+        try:
+            r = http_get(url, timeout=90)
+            r.raise_for_status()
+            raw = pd.read_csv(StringIO(r.text))
+            if len(raw.columns) < 3:
+                raise ValueError(f"reply is not a table: {r.text[:120]!r}")
+            return raw, url
+        except Exception as e:  # noqa: BLE001
+            problems.append(f"{url[:70]}... -> {type(e).__name__}: {str(e)[:120]}")
+    raise RuntimeError("No active-fire address worked: " + " || ".join(problems))
+
+
+def fetch_feed(http_get=requests.get) -> pd.DataFrame:
+    return normalise_feed(fetch_raw_feed(http_get)[0])
 
 
 # --------------------------------------------------------------- features
@@ -260,11 +291,9 @@ def main():
 
 
 def _main():
-    r = requests.get(FEED_URL, timeout=60)
-    r.raise_for_status()
-    from io import StringIO
-    raw = pd.read_csv(StringIO(r.text))
-    _annotate("notice", "Feed columns", f"{len(raw)} rows; columns={list(raw.columns)}")
+    raw, url = fetch_raw_feed()
+    _annotate("notice", "Feed columns", f"{len(raw)} rows from {url[:60]}...; columns={list(raw.columns)}")
+    print(raw.head(3).to_string())
     feed = normalise_feed(raw)
     log = pd.read_csv(LOG_PATH) if os.path.exists(LOG_PATH) else pd.DataFrame(columns=LOG_COLS)
     deps = {"weather": fetch_weather, "terrain": EarthEngineTerrain(), "model": Model()}

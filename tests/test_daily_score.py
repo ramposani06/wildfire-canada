@@ -104,3 +104,27 @@ def test_weather_uses_the_seven_days_before_the_report_date():
     w = ds.fetch_weather(50, -100, pd.Timestamp("2026-07-10"), http_get=lambda *a, **k: R())
     assert w["temperature_2m_max_max"] == 9 and w["temperature_2m_max_min"] == 3     # days 3..9
     assert w["precipitation_sum_sum"] == sum(range(3, 10))
+
+
+def test_feed_with_only_a_wkt_point_column():
+    raw = pd.DataFrame({"agency_code": ["bc"], "fire_name": ["W1"], "start_date": ["2026-07-10"],
+                        "hectares": [3.0], "geom": ["POINT (-120.5 56.25)"]})
+    f = ds.normalise_feed(raw)
+    assert f.iloc[0]["lat"] == 56.25 and f.iloc[0]["lon"] == -120.5 and f.iloc[0]["agency"] == "BC"
+
+
+def test_feed_falls_back_to_the_next_address():
+    calls = []
+    class R:
+        def __init__(self, ok): self.ok, self.text = ok, "a,b,c\n1,2,3\n"
+        def raise_for_status(self):
+            if not self.ok: raise RuntimeError("404")
+    def get(url, timeout=0):
+        calls.append(url); return R(len(calls) > 1)
+    old = ds.FEED_URLS
+    ds.FEED_URLS = ["http://one", "http://two"]
+    try:
+        raw, used = ds.fetch_raw_feed(get)
+    finally:
+        ds.FEED_URLS = old
+    assert used == "http://two" and list(raw.columns) == ["a", "b", "c"]
