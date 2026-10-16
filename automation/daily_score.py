@@ -322,9 +322,12 @@ def _main():
     print(raw.head(3).to_string())
     feed = normalise_feed(raw)
     log = pd.read_csv(LOG_PATH) if os.path.exists(LOG_PATH) else pd.DataFrame(columns=LOG_COLS)
-    deps = {"weather": fetch_weather, "terrain": EarthEngineTerrain(), "model": Model()}
-    from road_pop_lookup import RoadPopLookup
-    deps["lookup"] = RoadPopLookup()
+    if len(log) == 0 or (~feed["fire_id"].isin(log["fire_id"])).sum() == 0:
+        deps = {}                     # nothing to score: do not start Earth Engine or load the model
+    else:
+        deps = {"weather": fetch_weather, "terrain": EarthEngineTerrain(), "model": Model()}
+        from road_pop_lookup import RoadPopLookup
+        deps["lookup"] = RoadPopLookup()
     log, stats = run(feed, log, deps)
     os.makedirs(os.path.dirname(LOG_PATH), exist_ok=True)
     log.to_csv(LOG_PATH, index=False)
