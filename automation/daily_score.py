@@ -2,7 +2,8 @@
 
 Each run:
   1. downloads the current active-fire list (Canadian Wildland Fire Information System)
-  2. scores every fire that is new (started in the last 2 days) and not yet in the log
+  2. scores every fire that is new on the list (not in the log yet); the date it first appears is its report date.
+     The very first run only records the fires already burning (no scoring), because their real report dates are unknown
   3. updates size and status of fires already in the log, so we learn which became big
   4. writes automation/data/scored_log.csv and automation/data/latest_run.json
 
@@ -40,25 +41,25 @@ RUN_PATH = os.path.join(HERE, "data", "latest_run.json")
 MODEL_DIR = os.path.join(ROOT, "models")
 MODEL_FILE, INFO_FILE = "final_model_v14.7_allyears.pkl", "final_model_v14.7_info.json"
 BIG_HA = 100.0
-NEW_WITHIN_DAYS = 2
 CLOSED_STAGES = {"UC", "EX", "OUT"}       # under control / extinguished (OC = out of control and BH = being held stay open)
 
-LOG_COLS = ["fire_id", "agency", "name", "start", "first_seen_utc", "last_seen_utc", "lat", "lon",
-            "raw_score", "chance_big", "alert", "threshold", "ha_first", "ha_max", "stage_last",
+LOG_COLS = ["fire_id", "agency", "name", "report_date", "first_seen_utc", "last_seen_utc", "lat", "lon",
+            "scored", "raw_score", "chance_big", "alert", "threshold", "ha_first", "ha_max", "stage_last",
             "status", "big_so_far", "warnings"]
 
 # canonical name -> possible column names in the feed (compared in lower case)
 COLS = {
     "lat": ["lat", "latitude"],
     "lon": ["lon", "long", "longitude"],
-    "start": ["startdate", "start_date", "fire_start_date", "firedate", "fire_date", "ignition_date", "reported_date",
-              "rep_date", "reportdate", "report_date", "discovery_date"],
-    "ha": ["hectares", "current_size", "size_ha", "area_ha", "ha", "size", "area"],
-    "agency": ["agency", "agency_code", "src_agency", "source_agency"],
-    "name": ["firename", "fire_name", "name", "fire_number", "fire_num", "fire_id", "id"],
-    "stage": ["stage_of_control", "stageofcontrol", "stage", "fire_status", "status"],
+    "start": ["startdate", "start_date", "fire_start_date", "firedate", "ignition_date", "reported_date"],  # optional
+    "ha": ["fire_size", "hectares", "current_size", "size_ha", "area_ha", "ha", "size", "area"],
+    "agency": ["agency_code", "agency", "src_agency", "source_agency"],
+    "fid": ["national_fire_id"],
+    "name": ["agency_fire_id", "firename", "fire_name", "name", "fire_number", "fire_num", "fire_id", "id"],
+    "stage": ["stage_of_control_status", "stage_of_control", "stageofcontrol", "stage", "fire_status", "status"],
+    "prescribed": ["fire_was_prescribed", "prescribed"],
 }
-REQUIRED = ["lat", "lon", "start"]
+REQUIRED = ["lat", "lon"]
 
 
 # ------------------------------------------------------------------ feed
@@ -82,20 +83,33 @@ def normalise_feed(raw: pd.DataFrame) -> pd.DataFrame:
         raise KeyError(f"Active-fire list has no column for {missing}. Columns found: {list(raw.columns)}. "
                        f"Add the right names to COLS in automation/daily_score.py.")
     out = pd.DataFrame({k: raw[v] for k, v in pick.items()})
-    for k in ("ha", "agency", "name", "stage"):
+    for k in ("ha", "agency", "name", "stage", "fid", "start", "prescribed"):
         if k not in out: out[k] = np.nan
     out["lat"] = pd.to_numeric(out["lat"], errors="coerce")
     out["lon"] = pd.to_numeric(out["lon"], errors="coerce")
     out["ha"] = pd.to_numeric(out["ha"], errors="coerce")
     out["start"] = pd.to_datetime(out["start"], errors="coerce")
-    out["agency"] = out["agency"].astype(str).str.strip().str.upper()
-    out["name"] = out["name"].astype(str).str.strip()
-    out["stage"] = out["stage"].astype(str).str.strip().str.upper()
+    out["agency"] = out["agency"].fillna("").astype(str).str.strip().str.upper()
+    out["name"] = out["name"].fillna("").astype(str).str.strip()
+    out["stage"] = out["stage"].map(_stage_code)
+    out["prescribed"] = out["prescribed"].astype(str).str.strip().str.lower().isin(["true", "1", "y", "yes", "t"])
     out = out.dropna(subset=["lat", "lon"])
     out = out[out["lat"].between(41, 84) & out["lon"].between(-142, -52)]
-    out["fire_id"] = (out["agency"] + "|" + out["name"] + "|" + out["lat"].round(2).astype(str) + "|"
-                      + out["lon"].round(2).astype(str))
+    fid = out["fid"].fillna("").astype(str).str.strip()
+    fallback = out["agency"] + "|" + out["name"] + "|" + out["lat"].round(2).astype(str) + "|" + out["lon"].round(2).astype(str)
+    out["fire_id"] = np.where(fid.ne("") & fid.ne("nan"), fid, fallback)
     return out.drop_duplicates("fire_id").reset_index(drop=True)
+
+
+def _stage_code(v) -> str:
+    """Turn the stage text into OC / BH / UC / OUT (accepts codes or words)."""
+    t = str(v).strip().upper()
+    if t in ("", "NAN", "NONE"): return ""
+    if t.startswith("OUT OF") or t == "OC": return "OC"
+    if t.startswith("BEING") or t == "BH": return "BH"
+    if t.startswith("UNDER") or t == "UC": return "UC"
+    if t.startswith("OUT") or t in ("EX", "EXTINGUISHED"): return "OUT"
+    return t
 
 
 def fetch_raw_feed(http_get=requests.get) -> tuple:
@@ -201,10 +215,10 @@ class Model:
         return raw, float(chance), raw >= self.threshold
 
 
-def build_features(fire, deps) -> tuple:
-    """Return (feature dict, list of warnings). Raises if weather or terrain cannot be fetched."""
+def build_features(fire, deps, rd) -> tuple:
+    """Return (feature dict, list of warnings). rd = report date. Raises if weather or terrain cannot be fetched."""
     warns = []
-    rd = pd.Timestamp(fire["start"]).normalize()
+    rd = pd.Timestamp(rd).normalize()
     row = {"LATITUDE": fire["lat"], "LONGITUDE": fire["lon"],
            "province_encoded": PROVINCE_MAP.get(fire["agency"], np.nan)}
     if fire["agency"] not in PROVINCE_MAP:
@@ -222,14 +236,20 @@ def build_features(fire, deps) -> tuple:
 
 # -------------------------------------------------------------------- run
 def run(feed: pd.DataFrame, log: pd.DataFrame, deps: dict, now=None) -> tuple:
-    """Pure function: returns (new log, stats). deps = weather, terrain, lookup, model."""
+    """Pure function: returns (new log, stats). deps = weather, terrain, lookup, model.
+
+    The first run (empty log) only records the fires already burning. After that, a fire that is not in the log
+    is new: today is its report date, it is scored once, and never re-scored.
+    """
     now = pd.Timestamp(now) if now is not None else pd.Timestamp.now(tz="UTC").tz_localize(None)
     stamp = now.strftime("%Y-%m-%d %H:%M")
+    today = now.normalize()
+    first_run = len(log) == 0
     log = log.copy()
     for c in LOG_COLS:
         if c not in log: log[c] = np.nan
-    stats = {"time_utc": stamp, "feed_fires": int(len(feed)), "new_scored": 0, "new_failed": 0,
-             "updated": 0, "closed": 0, "errors": []}
+    stats = {"time_utc": stamp, "feed_fires": int(len(feed)), "baseline": 0, "new_scored": 0, "new_failed": 0,
+             "skipped_prescribed": 0, "updated": 0, "closed": 0, "errors": []}
 
     # 1) update fires already in the log
     seen = feed.set_index("fire_id")
@@ -247,28 +267,34 @@ def run(feed: pd.DataFrame, log: pd.DataFrame, deps: dict, now=None) -> tuple:
     log.loc[gone, "status"] = "closed"                # no longer on the active list
     stats["closed"] = int(gone.sum())
 
-    # 2) score new fires
-    cutoff = now.normalize() - pd.Timedelta(days=NEW_WITHIN_DAYS)
-    new = feed[(~feed["fire_id"].isin(log["fire_id"])) & (feed["start"] >= cutoff)]
+    # 2) new fires
+    new = feed[~feed["fire_id"].isin(log["fire_id"])]
     rows = []
     for _, fire in new.iterrows():
+        base = {"fire_id": fire["fire_id"], "agency": fire["agency"], "name": fire["name"],
+                "report_date": today.strftime("%Y-%m-%d"), "first_seen_utc": stamp, "last_seen_utc": stamp,
+                "lat": fire["lat"], "lon": fire["lon"], "ha_first": fire["ha"], "ha_max": fire["ha"],
+                "stage_last": fire["stage"], "status": "closed" if fire["stage"] in CLOSED_STAGES else "open",
+                "big_so_far": False}
+        if first_run or fire["prescribed"]:
+            why = "already burning when tracking started" if first_run else "prescribed burn"
+            rows.append({**base, "scored": False, "alert": False, "warnings": f"not scored: {why}"})
+            stats["baseline" if first_run else "skipped_prescribed"] += 1
+            continue
         try:
-            feats, warns = build_features(fire, deps)
+            feats, warns = build_features(fire, deps, today)
             raw, chance, alert = deps["model"].score(feats)
         except Exception as e:  # noqa: BLE001
             stats["new_failed"] += 1; stats["errors"].append(f"{fire['fire_id']}: {e}")
             continue
-        ha = fire["ha"]
-        rows.append({"fire_id": fire["fire_id"], "agency": fire["agency"], "name": fire["name"],
-                     "start": fire["start"].strftime("%Y-%m-%d"), "first_seen_utc": stamp, "last_seen_utc": stamp,
-                     "lat": fire["lat"], "lon": fire["lon"], "raw_score": round(raw, 4),
-                     "chance_big": round(chance, 4), "alert": bool(alert),
-                     "threshold": round(deps["model"].threshold, 4), "ha_first": ha, "ha_max": ha,
-                     "stage_last": fire["stage"], "status": "closed" if fire["stage"] in CLOSED_STAGES else "open",
-                     "big_so_far": False, "warnings": "; ".join(warns)})
+        rows.append({**base, "scored": True, "raw_score": round(raw, 4), "chance_big": round(chance, 4),
+                     "alert": bool(alert), "threshold": round(deps["model"].threshold, 4),
+                     "warnings": "; ".join(warns)})
         stats["new_scored"] += 1
     if rows:
         log = pd.concat([log, pd.DataFrame(rows)], ignore_index=True) if len(log) else pd.DataFrame(rows)
+    for c in LOG_COLS:
+        if c not in log: log[c] = np.nan
     log["big_so_far"] = pd.to_numeric(log["ha_max"], errors="coerce") > BIG_HA
     return log[LOG_COLS], stats
 
@@ -305,7 +331,8 @@ def _main():
     json.dump(stats, open(RUN_PATH, "w"), indent=1)
     print(json.dumps(stats, indent=1))
     _annotate("notice", "Run summary", f"feed={stats['feed_fires']} new_scored={stats['new_scored']} "
-              f"new_failed={stats['new_failed']} updated={stats['updated']} closed={stats['closed']}")
+              f"new_failed={stats['new_failed']} baseline={stats['baseline']} updated={stats['updated']} "
+              f"closed={stats['closed']}")
     for e in stats["errors"][:3]:
         _annotate("warning", "Fire not scored", e)
     if stats["new_failed"] and not stats["new_scored"]:

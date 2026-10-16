@@ -76,6 +76,10 @@ def live_page(stamp):
     log = pd.read_csv(path)
     if log.empty:
         return page("Live scores", head + "<p>The log is empty so far.</p>", stamp)
+    log = log[log["scored"].astype(str).str.lower().eq("true")].copy()
+    if log.empty:
+        return page("Live scores", head + "<p>Tracking has started. No new fires have appeared since, so nothing "
+                    "is scored yet. The first scores appear after the next new fire is reported.</p>", stamp)
     log["ha_max"] = pd.to_numeric(log["ha_max"], errors="coerce")
     big = log["big_so_far"].astype(str).str.lower().eq("true")
     alert = log["alert"].astype(str).str.lower().eq("true")
@@ -96,11 +100,11 @@ def live_page(stamp):
     for _, r in recent.iterrows():
         cls = ' class="al"' if str(r["alert"]).lower() == "true" else ""
         size = "" if pd.isna(r["ha_max"]) else f"{r['ha_max']:,.0f}"
-        rows.append(f"<tr{cls}><td>{_html.escape(str(r['start']))}</td><td>{_html.escape(str(r['agency']))}</td>"
+        rows.append(f"<tr{cls}><td>{_html.escape(str(r['report_date']))}</td><td>{_html.escape(str(r['agency']))}</td>"
                     f"<td>{_html.escape(str(r['name']))}</td><td class=\"num\">{r['raw_score']:.3f}</td>"
                     f"<td class=\"num\">{r['chance_big'] * 100:.0f}%</td><td class=\"num\">{size}</td>"
                     f"<td>{_html.escape(str(r['status']))}</td></tr>")
-    table = ("<table><thead><tr><th>Started</th><th>Agency</th><th>Fire</th><th>Score</th><th>Chance big</th>"
+    table = ("<table><thead><tr><th>Reported</th><th>Agency</th><th>Fire</th><th>Score</th><th>Chance big</th>"
              "<th>Size now (ha)</th><th>Status</th></tr></thead><tbody>" + "".join(rows) + "</tbody></table>")
     return page("Live scores", f"<style>{LIVE_CSS}</style>" + head + kpi + note + table, stamp)
 
